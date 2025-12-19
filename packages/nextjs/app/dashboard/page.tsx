@@ -186,7 +186,10 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {userNFTs.map(nft => (
-                <div key={nft.tokenId.toString()} className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow">
+                <div
+                  key={nft.tokenId.toString()}
+                  className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow"
+                >
                   <figure className="px-4 pt-4">
                     <div className="w-full aspect-square bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center overflow-hidden">
                       {nft.metadata?.image ? (
@@ -219,12 +222,7 @@ export default function DashboardPage() {
                       </div>
                     )}
                     <div className="card-actions justify-between mt-4">
-                      <a
-                        href={nft.tokenURI}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-ghost btn-sm"
-                      >
+                      <a href={nft.tokenURI} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
                         View Metadata
                       </a>
                       <button className="btn btn-primary btn-sm">Transfer</button>

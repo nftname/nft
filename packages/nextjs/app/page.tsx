@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { NextPage } from "next";
 import { useAccount } from "wagmi";
-import { CubeIcon, ShoppingBagIcon, RectangleStackIcon } from "@heroicons/react/24/outline";
+import { CubeIcon, RectangleStackIcon, ShoppingBagIcon } from "@heroicons/react/24/outline";
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
@@ -18,9 +18,7 @@ const Home: NextPage = () => {
               NNM Market
             </span>
           </h1>
-          <p className="text-center text-xl mb-8 opacity-80">
-            Mint, Trade, and Collect NFTs on Polygon Mainnet
-          </p>
+          <p className="text-center text-xl mb-8 opacity-80">Mint, Trade, and Collect NFTs on Polygon Mainnet</p>
 
           {!connectedAddress && (
             <div className="alert alert-warning max-w-2xl mx-auto mb-8">

@@ -11,7 +11,7 @@ export default function MintPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [tokenURI, setTokenURI] = useState("");
-  
+
   const { address: connectedAddress } = useAccount();
   const { writeContractAsync } = useScaffoldWriteContract("NNMMarket");
 
@@ -57,7 +57,7 @@ export default function MintPage() {
 
       // Step 2: Mint NFT on blockchain
       setStatus("Please confirm the transaction in your wallet...");
-      
+
       // Use the mint price from contract, or fallback to 0.01 POL
       const value = mintPrice || parseEther("0.01");
 
@@ -72,7 +72,6 @@ export default function MintPage() {
       // Transaction is auto-confirmed by Scaffold-ETH hooks
       setStatus(`Success! Your NFT has been minted. 🎉`);
       setName("");
-      
     } catch (err: any) {
       console.error("Minting error:", err);
       setError(err.message || "An error occurred during minting");

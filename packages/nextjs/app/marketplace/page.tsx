@@ -103,9 +103,7 @@ export default function MarketplacePage() {
 
           <div className="stat">
             <div className="stat-title">Current Mint Price</div>
-            <div className="stat-value text-primary">
-              {mintPrice ? `${formatEther(mintPrice)} POL` : "Loading..."}
-            </div>
+            <div className="stat-value text-primary">{mintPrice ? `${formatEther(mintPrice)} POL` : "Loading..."}</div>
             <div className="stat-desc">Per NFT</div>
           </div>
 
