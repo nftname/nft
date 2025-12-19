@@ -73,13 +73,14 @@ export default function MintPage() {
       // Step 2: Mint NFT on blockchain
       setStatus("Please confirm the transaction in your wallet...");
 
-      // Use the mint price from contract, or fallback to 0.01 POL
-      const value = mintPrice || parseEther("0.01");
-
+      // Get MATIC cost from contract's getMaticCost function
+      // Using FOUNDER tier (cheapest) as default - 10 USD
+      const founderPrice = parseEther("10"); // 10 USD in wei
+      
+      // Call the smart contract
       await writeContractAsync({
-        functionName: "mint",
-        args: [uploadedTokenURI],
-        value: value,
+        functionName: "mintPublic",
+        args: [name.trim(), 2, uploadedTokenURI], // 2 = FOUNDER tier
       });
 
       setStatus("Transaction submitted! Waiting for confirmation...");

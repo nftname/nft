@@ -1,9 +1,8 @@
 {
-  "buildCommand": "yarn build",
+  "buildCommand": "cd ../.. && yarn build",
   "framework": "nextjs",
-  "installCommand": "yarn install",
+  "installCommand": "cd ../.. && yarn install",
   "env": {
-    "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
-    "ENABLE_EXPERIMENTAL_COREPACK": "1"
+    "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
   }
 }
