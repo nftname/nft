@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     const imageData = await imageUploadResponse.json();
     const imageIpfsHash = imageData.IpfsHash;
-    const imageUrl = `https://${gatewayUrl}/ipfs/${imageIpfsHash}`;
+    const imageUrl = `${gatewayUrl}/ipfs/${imageIpfsHash}`;
 
     // Create metadata JSON
     const metadata = {
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     const metadataData = await metadataUploadResponse.json();
     const metadataIpfsHash = metadataData.IpfsHash;
-    const tokenURI = `https://${gatewayUrl}/ipfs/${metadataIpfsHash}`;
+    const tokenURI = `${gatewayUrl}/ipfs/${metadataIpfsHash}`;
 
     return NextResponse.json({
       success: true,

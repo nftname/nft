@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount } from "wagmi";
-import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
+import { formatEther } from "viem";
+import { useAccount, useBalance } from "wagmi";
+import { useScaffoldReadContract, useScaffoldWriteContract, useDeployedContractInfo } from "~~/hooks/scaffold-eth";
 
 interface NFTMetadata {
   name: string;
@@ -22,6 +23,11 @@ export default function DashboardPage() {
   const [userNFTs, setUserNFTs] = useState<UserNFT[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  // Get contract info
+  const { data: deployedContractData } = useDeployedContractInfo("NNMMarket");
+  const contractAddress = deployedContractData?.address;
 
   // Read user's NFT balance
   const { data: balance } = useScaffoldReadContract({
@@ -29,6 +35,40 @@ export default function DashboardPage() {
     functionName: "balanceOf",
     args: [connectedAddress],
   });
+
+  // Read contract owner (using raw call since it might not be in ABI yet)
+  const { data: contractOwner } = useScaffoldReadContract({
+    contractName: "NNMMarket",
+    functionName: "owner",
+  });
+
+  // Get contract balance using useBalance
+  const { data: contractBalanceData } = useBalance({
+    address: contractAddress,
+  });
+
+  // Write contract function
+  const { writeContractAsync } = useScaffoldWriteContract("NNMMarket");
+
+  // Check if user is owner
+  const isOwner = connectedAddress && contractOwner && connectedAddress.toLowerCase() === contractOwner.toLowerCase();
+
+  // Handle withdraw
+  const handleWithdraw = async () => {
+    if (!isOwner) return;
+    
+    setIsWithdrawing(true);
+    try {
+      await writeContractAsync({
+        functionName: "withdraw",
+      });
+    } catch (err: any) {
+      console.error("Withdraw error:", err);
+      setError(err.message || "Failed to withdraw funds");
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
 
   useEffect(() => {
     const fetchUserNFTs = async () => {
@@ -129,6 +169,31 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {isOwner && (
+          <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-6 mb-8 text-white">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div>
+                <h3 className="text-xl font-bold mb-2">👑 Contract Owner Panel</h3>
+                <p className="opacity-90">Contract Balance: <span className="font-bold text-2xl">{contractBalanceData ? formatEther(contractBalanceData.value) : "0"} POL</span></p>
+              </div>
+              <button 
+                onClick={handleWithdraw}
+                disabled={isWithdrawing || !contractBalanceData || contractBalanceData.value === 0n}
+                className="btn btn-neutral btn-lg"
+              >
+                {isWithdrawing ? (
+                  <>
+                    <span className="loading loading-spinner"></span>
+                    Withdrawing...
+                  </>
+                ) : (
+                  "💰 Withdraw Funds"
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="alert alert-error mb-6">

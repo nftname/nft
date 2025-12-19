@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { formatEther, parseEther } from "viem";
-import { useAccount } from "wagmi";
+import { useAccount, useSwitchChain, useChainId } from "wagmi";
+import { polygon } from "viem/chains";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
 export default function MintPage() {
@@ -13,7 +14,11 @@ export default function MintPage() {
   const [tokenURI, setTokenURI] = useState("");
 
   const { address: connectedAddress } = useAccount();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
   const { writeContractAsync } = useScaffoldWriteContract("NNMMarket");
+  
+  const isOnPolygon = chainId === polygon.id;
 
   // Read mint price from contract
   const { data: mintPrice } = useScaffoldReadContract({
@@ -30,6 +35,16 @@ export default function MintPage() {
     try {
       if (!connectedAddress) {
         throw new Error("Please connect your wallet first");
+      }
+
+      // Check if on correct network
+      if (!isOnPolygon) {
+        setStatus("Switching to Polygon network...");
+        try {
+          await switchChain({ chainId: polygon.id });
+        } catch (switchError: any) {
+          throw new Error("Please switch to Polygon network to mint");
+        }
       }
 
       if (!name.trim()) {
@@ -97,6 +112,24 @@ export default function MintPage() {
             </div>
           ) : (
             <form onSubmit={handleMint} className="space-y-6">
+              {!isOnPolygon && (
+                <div className="alert alert-warning">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="stroke-current shrink-0 h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <span>You&apos;re on the wrong network. You&apos;ll be prompted to switch to Polygon when you mint.</span>
+                </div>
+              )}
               <div>
                 <label htmlFor="name" className="block text-sm font-medium mb-2">
                   NFT Name
