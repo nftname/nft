@@ -1,7 +1,7 @@
 {
   "buildCommand": "yarn build",
   "framework": "nextjs",
-  "installCommand": "yarn install --ignore-scripts",
+  "installCommand": "yarn install",
   "env": {
     "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
     "ENABLE_EXPERIMENTAL_COREPACK": "1"
