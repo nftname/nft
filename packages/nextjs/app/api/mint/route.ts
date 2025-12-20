@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+// ✅ Force Node.js runtime (not Edge) to support Buffer and file operations
+export const runtime = "nodejs";
+
 // ✅ الوصف القانوني المعتمد
 const GLOBAL_DESCRIPTION = `GEN-0 Genesis — NNM Protocol Record
 
@@ -33,6 +36,11 @@ export async function POST(req: Request) {
     // 2. تحويل الصورة إلى ملف حقيقي (Buffer) لضمان عدم وصولها فارغة
     // (هذا هو السطر الذي يحل مشكلة الصورة المختفية في بيناتا)
     const buffer = Buffer.from(svgContent);
+
+    // ✅ Verify image buffer size before upload (required for Node.js runtime)
+    console.log(`[NFT Image] Buffer created: ${buffer.length} bytes`);
+    console.log(`[NFT Image] Runtime: Node.js`);
+
     const blob = new Blob([buffer], { type: "image/svg+xml" });
 
     const formData = new FormData();
@@ -46,7 +54,9 @@ export async function POST(req: Request) {
     formData.append("pinataOptions", pinataOptions);
 
     // 3. رفع الصورة
-    console.log("Uploading Image to Pinata...");
+    console.log("[NFT Upload] Uploading Image to Pinata via Node.js runtime...");
+    console.log(`[NFT Upload] Image size: ${buffer.length} bytes`);
+
     const imageUploadRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
       headers: {
@@ -63,7 +73,9 @@ export async function POST(req: Request) {
 
     const imageResult = await imageUploadRes.json();
     const imageUri = `ipfs://${imageResult.IpfsHash}`;
-    console.log("Image Uploaded:", imageUri);
+    console.log("[NFT Upload] ✅ Image Uploaded Successfully");
+    console.log(`[NFT Upload] CID: ${imageResult.IpfsHash}`);
+    console.log(`[NFT Upload] Image URI: ${imageUri}`);
 
     // 4. رفع الميتا داتا (JSON)
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
@@ -99,6 +111,11 @@ export async function POST(req: Request) {
 
     const jsonResult = await jsonUploadRes.json();
     const tokenUri = `ipfs://${jsonResult.IpfsHash}`;
+
+    console.log("[NFT Metadata] ✅ Metadata Uploaded Successfully");
+    console.log(`[NFT Metadata] CID: ${jsonResult.IpfsHash}`);
+    console.log(`[NFT Complete] ✅ NFT Ready for OpenSea & MetaMask`);
+    console.log(`[NFT Complete] Token URI: ${tokenUri}`);
 
     return NextResponse.json({
       success: true,
