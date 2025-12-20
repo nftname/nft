@@ -25,13 +25,13 @@ export default function MarketplacePage() {
 
   // Read total supply
   const { data: totalSupply } = useScaffoldReadContract({
-    contractName: "NNMMarket",
+    contractName: "NNMRegistryV99",
     functionName: "totalSupply",
   });
 
   // Read mint price (FOUNDER tier = $10 USD)
   const { data: mintPrice } = useScaffoldReadContract({
-    contractName: "NNMMarket",
+    contractName: "NNMRegistryV99",
     functionName: "getMaticCost",
     args: [parseEther("10")],
   });

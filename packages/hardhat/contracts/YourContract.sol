@@ -3,16 +3,14 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-// التغيير هنا: تم النقل من security إلى utils
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-// التغيير هنا: تم النقل من security إلى utils
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-contract NNMRegistryV9 is
+contract NNMRegistryV99 is
     ERC721URIStorage,
     ERC721Enumerable,
     Pausable,
@@ -56,13 +54,9 @@ contract NNMRegistryV9 is
         uint256 timestamp
     );
 
-    /* ================= AUTHORIZED MINTERS SYSTEM ================= */
-
     mapping(address => bool) public authorizedMinters;
     mapping(address => uint256) public authorizedMintCount;
     uint256 public constant AUTHORIZED_MINT_LIMIT = 200;
-
-    /* ================= CONSTRUCTOR ================= */
 
     constructor()
         ERC721("NNM Sovereign Asset", "NNM")
@@ -71,12 +65,9 @@ contract NNMRegistryV9 is
         priceFeed = AggregatorV3Interface(
             0xAB594600376Ec9fD91F8e885dADF0CE036862dE0
         );
-        _setDefaultRoyalty(msg.sender, 500); // 5% Royalties
+        _setDefaultRoyalty(msg.sender, 500);
     }
 
-    /* ================= ADMIN (OWNER) ================= */
-
-    // [ADDED] Critical Withdraw Function for Owner
     function withdraw() external onlyOwner {
         uint256 balance = address(this).balance;
         require(balance > 0, "No funds to withdraw");
@@ -106,9 +97,6 @@ contract NNMRegistryV9 is
         priceFounder = _founder;
     }
 
-    /* ================= AUTHORIZED MINTERS ================= */
-
-    // Gas only – limited per wallet
     function authorizedMint(
         string memory _name,
         Tier _tier,
@@ -125,8 +113,6 @@ contract NNMRegistryV9 is
 
         _mintLogic(cleanName, _tier, msg.sender, _tokenURI);
     }
-
-    /* ================= PUBLIC ================= */
 
     function mintPublic(
         string memory _name,
@@ -153,8 +139,6 @@ contract NNMRegistryV9 is
             require(success, "Refund failed");
         }
     }
-
-    /* ================= CORE ================= */
 
     function _mintLogic(
         string memory _name,
@@ -219,12 +203,8 @@ contract NNMRegistryV9 is
     {
         (, int256 price, , , ) = priceFeed.latestRoundData();
         require(price > 0, "Oracle error");
-        // Chainlink returns 8 decimals. We want 18 decimals result.
-        // Formula: (USD_18 * 1e18) / (Price_8 * 1e10)
         return (usdAmount * 1e18) / (uint256(price) * 1e10);
     }
-
-    /* ================= OVERRIDES ================= */
 
     function _update(
         address to,

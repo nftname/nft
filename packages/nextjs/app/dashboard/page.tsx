@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatEther } from "viem";
 import { useAccount, useBalance } from "wagmi";
-import { useScaffoldReadContract, useScaffoldWriteContract, useDeployedContractInfo } from "~~/hooks/scaffold-eth";
+import { useDeployedContractInfo, useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
 interface NFTMetadata {
   name: string;
@@ -26,19 +26,19 @@ export default function DashboardPage() {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   // Get contract info
-  const { data: deployedContractData } = useDeployedContractInfo("NNMMarket");
+  const { data: deployedContractData } = useDeployedContractInfo("NNMRegistryV99");
   const contractAddress = deployedContractData?.address;
 
   // Read user's NFT balance
   const { data: balance } = useScaffoldReadContract({
-    contractName: "NNMMarket",
+    contractName: "NNMRegistryV99",
     functionName: "balanceOf",
     args: [connectedAddress],
   });
 
   // Read contract owner (using raw call since it might not be in ABI yet)
   const { data: contractOwner } = useScaffoldReadContract({
-    contractName: "NNMMarket",
+    contractName: "NNMRegistryV99",
     functionName: "owner",
   });
 
@@ -48,7 +48,7 @@ export default function DashboardPage() {
   });
 
   // Write contract function
-  const { writeContractAsync } = useScaffoldWriteContract("NNMMarket");
+  const { writeContractAsync } = useScaffoldWriteContract("NNMRegistryV99");
 
   // Check if user is owner
   const isOwner = connectedAddress && contractOwner && connectedAddress.toLowerCase() === contractOwner.toLowerCase();
@@ -56,7 +56,7 @@ export default function DashboardPage() {
   // Handle withdraw
   const handleWithdraw = async () => {
     if (!isOwner) return;
-    
+
     setIsWithdrawing(true);
     try {
       await writeContractAsync({
@@ -175,9 +175,14 @@ export default function DashboardPage() {
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div>
                 <h3 className="text-xl font-bold mb-2">👑 Contract Owner Panel</h3>
-                <p className="opacity-90">Contract Balance: <span className="font-bold text-2xl">{contractBalanceData ? formatEther(contractBalanceData.value) : "0"} POL</span></p>
+                <p className="opacity-90">
+                  Contract Balance:{" "}
+                  <span className="font-bold text-2xl">
+                    {contractBalanceData ? formatEther(contractBalanceData.value) : "0"} POL
+                  </span>
+                </p>
               </div>
-              <button 
+              <button
                 onClick={handleWithdraw}
                 disabled={isWithdrawing || !contractBalanceData || contractBalanceData.value === 0n}
                 className="btn btn-neutral btn-lg"

@@ -18,7 +18,7 @@ export default function MintPage() {
   const { address: connectedAddress } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const { writeContractAsync } = useScaffoldWriteContract("NNMMarket");
+  const { writeContractAsync } = useScaffoldWriteContract("NNMRegistryV99");
 
   const isOnPolygon = chainId === polygon.id;
 
@@ -34,7 +34,7 @@ export default function MintPage() {
   ];
 
   const { data: mintCost } = useScaffoldReadContract({
-    contractName: "NNMMarket",
+    contractName: "NNMRegistryV99",
     functionName: "getMaticCost",
     args: [parseEther(tiers.find(t => t.index === selectedTier)?.price || "10")],
   });
