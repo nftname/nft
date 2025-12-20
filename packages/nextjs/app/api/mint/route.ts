@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import sharp from "sharp";
 
 // ✅ Force Node.js runtime (not Edge) to support Buffer and file operations
 export const runtime = "nodejs";
@@ -33,29 +34,30 @@ export async function POST(req: Request) {
     // 1. توليد الصورة (باستخدام دالة التصميم الموجودة في الأسفل)
     const svgContent = generateSVG(name, tier);
 
-    // 2. تحويل الصورة إلى ملف حقيقي (Buffer) لضمان عدم وصولها فارغة
-    // (هذا هو السطر الذي يحل مشكلة الصورة المختفية في بيناتا)
-    const buffer = Buffer.from(svgContent);
+    // 2. تحويل SVG إلى PNG (800x800) باستخدام sharp
+    const svgBuffer = Buffer.from(svgContent);
+    const pngBuffer = await sharp(svgBuffer).resize(800, 800).png().toBuffer();
 
     // ✅ Verify image buffer size before upload (required for Node.js runtime)
-    console.log(`[NFT Image] Buffer created: ${buffer.length} bytes`);
+    console.log(`[NFT Image] SVG Buffer created: ${svgBuffer.length} bytes`);
+    console.log(`[NFT Image] PNG Buffer created: ${pngBuffer.length} bytes`);
     console.log(`[NFT Image] Runtime: Node.js`);
 
-    const blob = new Blob([buffer], { type: "image/svg+xml" });
+    const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
 
     const formData = new FormData();
-    formData.append("file", blob, `${name.replace(/\s+/g, "_")}.svg`);
+    formData.append("file", blob, `${name.replace(/\s+/g, "_")}.png`);
 
     // إعدادات بيناتا لتنظيم الملفات
-    const pinataMetadata = JSON.stringify({ name: `${name}.svg` });
+    const pinataMetadata = JSON.stringify({ name: `${name}.png` });
     formData.append("pinataMetadata", pinataMetadata);
 
     const pinataOptions = JSON.stringify({ cidVersion: 1 });
     formData.append("pinataOptions", pinataOptions);
 
     // 3. رفع الصورة
-    console.log("[NFT Upload] Uploading Image to Pinata via Node.js runtime...");
-    console.log(`[NFT Upload] Image size: ${buffer.length} bytes`);
+    console.log("[NFT Upload] Uploading PNG Image to Pinata via Node.js runtime...");
+    console.log(`[NFT Upload] Image size: ${pngBuffer.length} bytes`);
 
     const imageUploadRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
@@ -72,10 +74,15 @@ export async function POST(req: Request) {
     }
 
     const imageResult = await imageUploadRes.json();
-    const imageUri = `ipfs://${imageResult.IpfsHash}`;
+    const imageIpfsHash = imageResult.IpfsHash;
+    const imageUri = `ipfs://${imageIpfsHash}`;
+    const imageGatewayUrl = `https://ipfs.io/ipfs/${imageIpfsHash}`;
+
     console.log("[NFT Upload] ✅ Image Uploaded Successfully");
-    console.log(`[NFT Upload] CID: ${imageResult.IpfsHash}`);
-    console.log(`[NFT Upload] Image URI: ${imageUri}`);
+    console.log(`[NFT Upload] IPFS Hash: ${imageIpfsHash}`);
+    console.log(`[NFT Upload] Image IPFS URI: ${imageUri}`);
+    console.log(`[NFT Upload] Image Gateway URL: ${imageGatewayUrl}`);
+    console.log(`[NFT Upload] 🌐 Direct Link: ${imageGatewayUrl}`);
 
     // 4. رفع الميتا داتا (JSON)
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
@@ -119,7 +126,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      tokenURI: tokenUri, // لاحظ: أعدنا تسميتها tokenURI لتطابق الصفحة
+      tokenURI: tokenUri,
+      imageIpfs: imageUri,
+      imageGateway: imageGatewayUrl,
     });
   } catch (error: any) {
     console.error("Mint API Error:", error);
