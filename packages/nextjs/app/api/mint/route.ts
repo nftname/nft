@@ -195,8 +195,7 @@ function generateSVG(name: string, tier: string) {
   }
 
   // تنظيف الاسم من رموز غير مسموحة، ثم escape XML
-  let cleanName = name.replace(/[^a-zA-Z0-9 \-&]/g, "").toUpperCase();
-  cleanName = escapeXml(cleanName);
+  const cleanName = escapeXml(name.replace(/[^a-zA-Z0-9 &–]/g, "").toUpperCase());
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
