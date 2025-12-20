@@ -45,13 +45,15 @@ export async function POST(req: Request) {
 
     const imageUploadRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
-      headers: { Authorization: `Bearer ${process.env.PINATA_JWT}` },
+      headers: {
+        Authorization: `Bearer ${process.env.PINATA_JWT}`,
+      },
       body: formData,
     });
 
     if (!imageUploadRes.ok) {
       const errorText = await imageUploadRes.text();
-      throw new Error("Image Upload Failed: " + errorText);
+      throw new Error(`Image Upload Failed: ${errorText}`);
     }
 
     const imageResult = await imageUploadRes.json();
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
 
     const metadata = {
-      name: name.toUpperCase(),
+      name: name,
       description: GLOBAL_DESCRIPTION,
       image: imageUri,
       external_url: "https://nftnamemarket.com",
@@ -123,7 +125,7 @@ function escapeXml(unsafe: string): string {
 
 function generateSVG(name: string, tier: string) {
   const universalBorder = "#FCD535";
-  let styles = { bg1: "#001f24", bg2: "#003840", border: "#008080", text: "#FCD535" };
+  let styles = { bg1: "#001f24", bg2: "#003840", border: "#FCD535", text: "#FCD535" };
 
   const t = tier?.toLowerCase() || "founder";
   if (t === "immortal") styles = { bg1: "#0a0a0a", bg2: "#1c1c1c", border: universalBorder, text: "#FCD535" };
@@ -137,38 +139,23 @@ function generateSVG(name: string, tier: string) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <style type="text/css">
-      @font-face {
-        font-family: "Cinzel";
-        src: url("https://fonts.gstatic.com/s/cinzel/v28/SlGUmQy0fIuXy4gW6DE3lB8fWg.woff2") format("woff2");
-      }
-      .title { font-family: "Cinzel", serif; fill: #FCD535; font-weight: 900; letter-spacing: 4px; font-size: 32px; }
-      .name { font-family: "Cinzel", serif; fill: #FCD535; font-weight: 900; letter-spacing: 4px; font-size: 80px; filter: url(#glow); }
-      .sub { font-family: "Cinzel", serif; fill: #FCD535; font-weight: 700; letter-spacing: 6px; font-size: 28px; }
-      .year { font-family: "Cinzel", serif; fill: #FCD535; font-weight: 700; letter-spacing: 4px; font-size: 28px; }
-    </style>
     <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:${styles.bg1};stop-opacity:1" />
       <stop offset="100%" style="stop-color:${styles.bg2};stop-opacity:1" />
     </linearGradient>
-    <pattern id="subtlePattern" width="20" height="20" patternUnits="userSpaceOnUse">
-        <circle cx="1" cy="1" r="1" fill="${styles.border}" fill-opacity="0.05" />
-    </pattern>
     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="10" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
     </filter>
   </defs>
-  
   <rect width="100%" height="100%" fill="#050505" />
-  <rect x="50" y="50" width="700" height="700" rx="40" ry="40" fill="url(#bgGradient)" stroke="${styles.border}" stroke-width="6" />
-  <rect x="50" y="50" width="700" height="700" rx="40" ry="40" fill="url(#subtlePattern)" />
-  <rect x="70" y="70" width="660" height="660" rx="30" ry="30" fill="none" stroke="${styles.border}" stroke-width="1" stroke-opacity="0.4" />
-
-  <text x="400" y="180" text-anchor="middle" class="title">${textGenesis}</text>
-  <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" class="name">${cleanName}</text>
-  <text x="400" y="680" text-anchor="middle" class="year">${textYear}</text>
-  <text x="400" y="620" text-anchor="middle" class="sub">${textOwned}</text>
-</svg>
-  `.trim();
+  <rect x="50" y="50" width="700" height="700" rx="40" ry="40" fill="url(#bgGradient)" stroke="${styles.border}" stroke-width="2" />
+  <text x="400" y="180" text-anchor="middle" font-family="serif" font-size="32" fill="${styles.text}" font-weight="bold" letter-spacing="8">${textGenesis}</text>
+  <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" font-family="serif" font-size="80" fill="${styles.text}" font-weight="900" letter-spacing="4" filter="url(#glow)">${cleanName}</text>
+  <text x="400" y="620" text-anchor="middle" font-family="serif" font-size="32" fill="${styles.text}" font-weight="bold" letter-spacing="6">${textOwned}</text>
+  <text x="400" y="670" text-anchor="middle" font-family="serif" font-size="32" fill="${styles.text}" font-weight="bold" letter-spacing="4">${textYear}</text>
+</svg>`.trim();
 }
