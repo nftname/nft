@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatEther } from "viem";
+import { formatEther, parseEther } from "viem";
 import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
 
 interface NFTMetadata {
@@ -29,10 +29,11 @@ export default function MarketplacePage() {
     functionName: "totalSupply",
   });
 
-  // Read mint price
+  // Read mint price (FOUNDER tier = $10 USD)
   const { data: mintPrice } = useScaffoldReadContract({
     contractName: "NNMMarket",
-    functionName: "mintPrice",
+    functionName: "getMaticCost",
+    args: [parseEther("10")],
   });
 
   useEffect(() => {

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { formatEther, parseEther } from "viem";
-import { useAccount, useSwitchChain, useChainId } from "wagmi";
 import { polygon } from "viem/chains";
+import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
 export default function MintPage() {
@@ -17,13 +17,14 @@ export default function MintPage() {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const { writeContractAsync } = useScaffoldWriteContract("NNMMarket");
-  
+
   const isOnPolygon = chainId === polygon.id;
 
-  // Read mint price from contract
-  const { data: mintPrice } = useScaffoldReadContract({
+  // Read mint price from contract (FOUNDER tier = $10 USD)
+  const { data: mintCost } = useScaffoldReadContract({
     contractName: "NNMMarket",
-    functionName: "mintPrice",
+    functionName: "getMaticCost",
+    args: [parseEther("10")], // FOUNDER tier = 10 USD
   });
 
   const handleMint = async (e: React.FormEvent) => {
@@ -42,7 +43,7 @@ export default function MintPage() {
         setStatus("Switching to Polygon network...");
         try {
           await switchChain({ chainId: polygon.id });
-        } catch (switchError: any) {
+        } catch {
           throw new Error("Please switch to Polygon network to mint");
         }
       }
@@ -73,14 +74,11 @@ export default function MintPage() {
       // Step 2: Mint NFT on blockchain
       setStatus("Please confirm the transaction in your wallet...");
 
-      // Get MATIC cost from contract's getMaticCost function
-      // Using FOUNDER tier (cheapest) as default - 10 USD
-      const founderPrice = parseEther("10"); // 10 USD in wei
-      
-      // Call the smart contract
+      // Call the smart contract with value (POL payment)
       await writeContractAsync({
         functionName: "mintPublic",
         args: [name.trim(), 2, uploadedTokenURI], // 2 = FOUNDER tier
+        value: mintCost, // Send POL payment
       });
 
       setStatus("Transaction submitted! Waiting for confirmation...");
@@ -128,7 +126,9 @@ export default function MintPage() {
                       d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                     />
                   </svg>
-                  <span>You&apos;re on the wrong network. You&apos;ll be prompted to switch to Polygon when you mint.</span>
+                  <span>
+                    You&apos;re on the wrong network. You&apos;ll be prompted to switch to Polygon when you mint.
+                  </span>
                 </div>
               )}
               <div>
@@ -148,7 +148,7 @@ export default function MintPage() {
                 <p className="text-xs opacity-60 mt-1">Choose a unique name for your NFT</p>
               </div>
 
-              {mintPrice && (
+              {mintCost && (
                 <div className="alert">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -163,7 +163,7 @@ export default function MintPage() {
                       d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     ></path>
                   </svg>
-                  <span>Mint Price: {formatEther(mintPrice)} POL</span>
+                  <span>Mint Price: {formatEther(mintCost)} POL</span>
                 </div>
               )}
 
