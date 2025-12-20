@@ -8,10 +8,12 @@ import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaf
 
 export default function MintPage() {
   const [name, setName] = useState("");
+  const [selectedTier, setSelectedTier] = useState<number>(2); // Default: FOUNDER (tier 2)
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [tokenURI, setTokenURI] = useState("");
+  const [nameAvailability, setNameAvailability] = useState<"checking" | "available" | "taken" | null>(null);
 
   const { address: connectedAddress } = useAccount();
   const chainId = useChainId();
@@ -20,11 +22,18 @@ export default function MintPage() {
 
   const isOnPolygon = chainId === polygon.id;
 
-  // Read mint price from contract (FOUNDER tier = $10 USD)
+  // Tier configuration: [tier_index, price_usd, tier_name]
+  const tiers = [
+    { index: 0, price: "50", name: "IMMORTAL" },
+    { index: 1, price: "30", name: "ELITE" },
+    { index: 2, price: "10", name: "FOUNDER" },
+  ];
+
+  // Read mint price from contract based on selected tier
   const { data: mintCost } = useScaffoldReadContract({
     contractName: "NNMMarket",
     functionName: "getMaticCost",
-    args: [parseEther("10")], // FOUNDER tier = 10 USD
+    args: [parseEther(tiers.find(t => t.index === selectedTier)?.price || "10")],
   });
 
   const handleMint = async (e: React.FormEvent) => {
@@ -32,6 +41,7 @@ export default function MintPage() {
     setError("");
     setStatus("");
     setIsLoading(true);
+    setNameAvailability(null); // Reset availability check during mint
 
     try {
       if (!connectedAddress) {
@@ -74,18 +84,28 @@ export default function MintPage() {
       // Step 2: Mint NFT on blockchain
       setStatus("Please confirm the transaction in your wallet...");
 
-      // Call the smart contract with value (POL payment)
-      await writeContractAsync({
-        functionName: "mintPublic",
-        args: [name.trim(), 2, uploadedTokenURI], // 2 = FOUNDER tier
-        value: mintCost, // Send POL payment
-      });
+      try {
+        // Call the smart contract with value (POL payment)
+        await writeContractAsync({
+          functionName: "mintPublic",
+          args: [name.trim(), selectedTier, uploadedTokenURI], // Use selected tier
+          value: mintCost, // Send POL payment
+        });
 
-      setStatus("Transaction submitted! Waiting for confirmation...");
+        setStatus("Transaction submitted! Waiting for confirmation...");
 
-      // Transaction is auto-confirmed by Scaffold-ETH hooks
-      setStatus(`Success! Your NFT has been minted. 🎉`);
-      setName("");
+        // Transaction is auto-confirmed by Scaffold-ETH hooks
+        setStatus(`Success! Your NFT has been minted. 🎉`);
+        setName("");
+        setNameAvailability("available"); // Show success
+      } catch (mintError: any) {
+        // Check if name is already taken
+        if (mintError.message && mintError.message.includes("Name already registered")) {
+          setNameAvailability("taken");
+          throw new Error("❌ هذا الاسم محجوز مسبقاً، اختر اسم آخر");
+        }
+        throw mintError;
+      }
     } catch (err: any) {
       console.error("Minting error:", err);
       setError(err.message || "An error occurred during minting");
@@ -139,17 +159,80 @@ export default function MintPage() {
                   id="name"
                   type="text"
                   value={name}
-                  onChange={e => setName(e.target.value)}
+                  onChange={e => {
+                    setName(e.target.value);
+                    setNameAvailability(null); // Reset when typing
+                  }}
                   placeholder="Enter your NFT name"
                   className="input input-bordered w-full"
                   disabled={isLoading}
                   maxLength={50}
                 />
                 <p className="text-xs opacity-60 mt-1">Choose a unique name for your NFT</p>
+
+                {/* Name Availability Status */}
+                {name.trim().length >= 2 && nameAvailability === "available" && (
+                  <div className="alert alert-success mt-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="stroke-current shrink-0 h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="font-bold">🎉 مبروك! الاسم متاح</span>
+                  </div>
+                )}
+
+                {name.trim().length >= 2 && nameAvailability === "taken" && (
+                  <div className="alert alert-error mt-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="stroke-current shrink-0 h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="font-bold">❌ هذا الاسم محجوز، اختر اسم آخر</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Tier Selection Buttons */}
+              <div>
+                <label className="block text-sm font-medium mb-3">اختر الفئة (Tier)</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {tiers.map(tier => (
+                    <button
+                      key={tier.index}
+                      type="button"
+                      onClick={() => setSelectedTier(tier.index)}
+                      disabled={isLoading}
+                      className={`btn ${
+                        selectedTier === tier.index ? "btn-primary" : "btn-outline"
+                      } flex flex-col h-auto py-4`}
+                    >
+                      <span className="text-xs opacity-70">{tier.name}</span>
+                      <span className="text-2xl font-bold">${tier.price}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {mintCost && (
-                <div className="alert">
+                <div className="alert alert-info">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -163,7 +246,13 @@ export default function MintPage() {
                       d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     ></path>
                   </svg>
-                  <span>Mint Price: {formatEther(mintCost)} POL</span>
+                  <div>
+                    <span className="font-bold">
+                      {tiers.find(t => t.index === selectedTier)?.name} Tier: $
+                      {tiers.find(t => t.index === selectedTier)?.price}
+                    </span>
+                    <p className="text-xs">POL Cost: {formatEther(mintCost)} POL</p>
+                  </div>
                 </div>
               )}
 
@@ -227,14 +316,17 @@ export default function MintPage() {
                 </div>
               )}
 
-              <button type="submit" className="btn btn-primary w-full" disabled={isLoading || !name.trim()}>
+              <button type="submit" className="btn btn-primary w-full btn-lg" disabled={isLoading || !name.trim()}>
                 {isLoading ? (
                   <>
                     <span className="loading loading-spinner"></span>
                     Minting...
                   </>
                 ) : (
-                  "Mint NFT"
+                  <>
+                    Mint {tiers.find(t => t.index === selectedTier)?.name} NFT - $
+                    {tiers.find(t => t.index === selectedTier)?.price}
+                  </>
                 )}
               </button>
             </form>
