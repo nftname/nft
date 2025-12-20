@@ -8,7 +8,7 @@ import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaf
 
 export default function MintPage() {
   const [name, setName] = useState("");
-  const [selectedTier, setSelectedTier] = useState<number>(2); // Default: FOUNDER (tier 2)
+  const [selectedTier, setSelectedTier] = useState<number>(2);
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -22,14 +22,17 @@ export default function MintPage() {
 
   const isOnPolygon = chainId === polygon.id;
 
-  // Tier configuration: [tier_index, price_usd, tier_name]
+  const allowedWallets = ["0xf65BF669EE7775C9788ed367742e1527D0118B58"];
+
+  const isAllowed =
+    connectedAddress && allowedWallets.some(wallet => wallet.toLowerCase() === connectedAddress.toLowerCase());
+
   const tiers = [
     { index: 0, price: "50", name: "IMMORTAL" },
     { index: 1, price: "30", name: "ELITE" },
     { index: 2, price: "10", name: "FOUNDER" },
   ];
 
-  // Read mint price from contract based on selected tier
   const { data: mintCost } = useScaffoldReadContract({
     contractName: "NNMMarket",
     functionName: "getMaticCost",
@@ -41,14 +44,13 @@ export default function MintPage() {
     setError("");
     setStatus("");
     setIsLoading(true);
-    setNameAvailability(null); // Reset availability check during mint
+    setNameAvailability(null);
 
     try {
       if (!connectedAddress) {
         throw new Error("Please connect your wallet first");
       }
 
-      // Check if on correct network
       if (!isOnPolygon) {
         setStatus("Switching to Polygon network...");
         try {
@@ -62,13 +64,10 @@ export default function MintPage() {
         throw new Error("Please enter a name for your NFT");
       }
 
-      // Step 1: Upload to IPFS via API
       setStatus("Uploading to IPFS...");
       const response = await fetch("/api/mint", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim() }),
       });
 
@@ -81,28 +80,30 @@ export default function MintPage() {
       setTokenURI(uploadedTokenURI);
       setStatus("IPFS upload successful! Preparing transaction...");
 
-      // Step 2: Mint NFT on blockchain
       setStatus("Please confirm the transaction in your wallet...");
 
       try {
-        // Call the smart contract with value (POL payment)
-        await writeContractAsync({
-          functionName: "mintPublic",
-          args: [name.trim(), selectedTier, uploadedTokenURI], // Use selected tier
-          value: mintCost, // Send POL payment
-        });
+        if (isAllowed) {
+          await writeContractAsync({
+            functionName: "reserveName",
+            args: [name.trim(), 0, uploadedTokenURI],
+          });
+          setStatus(`Success! Reserved "${name}" successfully.`);
+        } else {
+          await writeContractAsync({
+            functionName: "mintPublic",
+            args: [name.trim(), selectedTier, uploadedTokenURI],
+            value: mintCost,
+          });
+          setStatus(`Success! Your NFT has been minted. 🎉`);
+        }
 
-        setStatus("Transaction submitted! Waiting for confirmation...");
-
-        // Transaction is auto-confirmed by Scaffold-ETH hooks
-        setStatus(`Success! Your NFT has been minted. 🎉`);
         setName("");
-        setNameAvailability("available"); // Show success
+        setNameAvailability("available");
       } catch (mintError: any) {
-        // Check if name is already taken
         if (mintError.message && mintError.message.includes("Name already registered")) {
           setNameAvailability("taken");
-          throw new Error("❌ هذا الاسم محجوز مسبقاً، اختر اسم آخر");
+          throw new Error("Name already taken");
         }
         throw mintError;
       }
@@ -127,30 +128,9 @@ export default function MintPage() {
           {!connectedAddress ? (
             <div className="text-center">
               <p className="text-lg mb-4">Please connect your wallet to mint NFTs</p>
-              <p className="text-sm opacity-70">Make sure you&apos;re connected to Polygon Mainnet</p>
             </div>
           ) : (
             <form onSubmit={handleMint} className="space-y-6">
-              {!isOnPolygon && (
-                <div className="alert alert-warning">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="stroke-current shrink-0 h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
-                  </svg>
-                  <span>
-                    You&apos;re on the wrong network. You&apos;ll be prompted to switch to Polygon when you mint.
-                  </span>
-                </div>
-              )}
               <div>
                 <label htmlFor="name" className="block text-sm font-medium mb-2">
                   NFT Name
@@ -161,187 +141,61 @@ export default function MintPage() {
                   value={name}
                   onChange={e => {
                     setName(e.target.value);
-                    setNameAvailability(null); // Reset when typing
+                    setNameAvailability(null);
                   }}
                   placeholder="Enter your NFT name"
                   className="input input-bordered w-full"
                   disabled={isLoading}
                   maxLength={50}
                 />
-                <p className="text-xs opacity-60 mt-1">Choose a unique name for your NFT</p>
 
-                {/* Name Availability Status */}
                 {name.trim().length >= 2 && nameAvailability === "available" && (
-                  <div className="alert alert-success mt-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="stroke-current shrink-0 h-6 w-6"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <span className="font-bold">🎉 مبروك! الاسم متاح</span>
-                  </div>
+                  <div className="text-success text-sm mt-1 font-bold">✓ Available</div>
                 )}
-
                 {name.trim().length >= 2 && nameAvailability === "taken" && (
-                  <div className="alert alert-error mt-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="stroke-current shrink-0 h-6 w-6"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <span className="font-bold">❌ هذا الاسم محجوز، اختر اسم آخر</span>
-                  </div>
+                  <div className="text-error text-sm mt-1 font-bold">✕ Taken</div>
                 )}
               </div>
 
-              {/* Tier Selection Buttons */}
-              <div>
-                <label className="block text-sm font-medium mb-3">اختر الفئة (Tier)</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {tiers.map(tier => (
-                    <button
-                      key={tier.index}
-                      type="button"
-                      onClick={() => setSelectedTier(tier.index)}
-                      disabled={isLoading}
-                      className={`btn ${
-                        selectedTier === tier.index ? "btn-primary" : "btn-outline"
-                      } flex flex-col h-auto py-4`}
-                    >
-                      <span className="text-xs opacity-70">{tier.name}</span>
-                      <span className="text-2xl font-bold">${tier.price}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {mintCost && (
-                <div className="alert alert-info">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    className="stroke-info shrink-0 w-6 h-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    ></path>
-                  </svg>
-                  <div>
-                    <span className="font-bold">
-                      {tiers.find(t => t.index === selectedTier)?.name} Tier: $
-                      {tiers.find(t => t.index === selectedTier)?.price}
-                    </span>
-                    <p className="text-xs">POL Cost: {formatEther(mintCost)} POL</p>
+              {!isAllowed && (
+                <div>
+                  <label className="block text-sm font-medium mb-3">Choose Tier</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {tiers.map(tier => (
+                      <button
+                        key={tier.index}
+                        type="button"
+                        onClick={() => setSelectedTier(tier.index)}
+                        disabled={isLoading}
+                        className={`btn ${
+                          selectedTier === tier.index ? "btn-primary" : "btn-outline"
+                        } flex flex-col h-auto py-4`}
+                      >
+                        <span className="text-xs opacity-70">{tier.name}</span>
+                        <span className="text-2xl font-bold">${tier.price}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {status && (
-                <div className="alert alert-info">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    className="stroke-current shrink-0 w-6 h-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    ></path>
-                  </svg>
-                  <span>{status}</span>
-                </div>
-              )}
-
-              {error && (
-                <div className="alert alert-error">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="stroke-current shrink-0 h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {tokenURI && (
-                <div className="alert alert-success">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="stroke-current shrink-0 h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="font-bold">Metadata uploaded!</p>
-                    <p className="text-xs break-all">{tokenURI}</p>
-                  </div>
-                </div>
-              )}
+              {status && <div className="alert alert-info text-sm py-2">{status}</div>}
+              {error && <div className="alert alert-error text-sm py-2">{error}</div>}
 
               <button type="submit" className="btn btn-primary w-full btn-lg" disabled={isLoading || !name.trim()}>
                 {isLoading ? (
                   <>
                     <span className="loading loading-spinner"></span>
-                    Minting...
+                    Processing...
                   </>
+                ) : isAllowed ? (
+                  "Mint Now"
                 ) : (
-                  <>
-                    Mint {tiers.find(t => t.index === selectedTier)?.name} NFT - $
-                    {tiers.find(t => t.index === selectedTier)?.price}
-                  </>
+                  `Mint NFT - $${tiers.find(t => t.index === selectedTier)?.price}`
                 )}
               </button>
             </form>
           )}
-        </div>
-
-        <div className="mt-8 bg-base-200 rounded-2xl p-6">
-          <h2 className="text-xl font-bold mb-4">How it works:</h2>
-          <ol className="list-decimal list-inside space-y-2 opacity-80">
-            <li>Connect your wallet to Polygon Mainnet</li>
-            <li>Enter a unique name for your NFT</li>
-            <li>Your metadata will be uploaded to IPFS via Pinata</li>
-            <li>Confirm the transaction to mint your NFT on Polygon</li>
-            <li>View your NFT in the Dashboard after minting</li>
-          </ol>
         </div>
       </div>
     </div>
