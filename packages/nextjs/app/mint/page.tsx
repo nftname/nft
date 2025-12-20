@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatEther, parseEther } from "viem";
+import { parseEther } from "viem";
 import { polygon } from "viem/chains";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
@@ -19,17 +19,33 @@ export default function MintPage() {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
 
-  // ✅ 1. التأكد من اسم العقد الجديد
   const { writeContractAsync } = useScaffoldWriteContract("NNMRegistryV99");
 
   const isOnPolygon = chainId === polygon.id;
 
-  // هذه القائمة للأدمن، لكننا سنعطل إخفاء الأزرار مؤقتاً
-  const allowedWallets = ["0xf65BF669EE7775C9788ed367742e1527D0118B58"];
-  const isAllowed =
-    connectedAddress && allowedWallets.some(wallet => wallet.toLowerCase() === connectedAddress.toLowerCase());
+  // ============================================================
+  // 🧠 المنطقة الذكية: قراءة الصلاحيات من العقد مباشرة
+  // ============================================================
 
-  // ✅ 2. ضبط ترتيب الباقات حسب العقد (0=Immortal, 1=Elite, 2=Founder)
+  // 1. نسأل العقد: من هو المالك الحالي؟
+  const { data: ownerAddress } = useScaffoldReadContract({
+    contractName: "NNMRegistryV99",
+    functionName: "owner",
+  });
+
+  // 2. نسأل العقد: هل المحفظة المتصلة موجودة في قائمة المصرح لهم؟
+  const { data: isAuthorized } = useScaffoldReadContract({
+    contractName: "NNMRegistryV99",
+    functionName: "authorizedMinters",
+    args: [connectedAddress],
+  });
+
+  // التحقق النهائي: هل المتصل هو المالك OR هو شخص مصرح له؟
+  const isOwner = connectedAddress && ownerAddress && connectedAddress.toLowerCase() === ownerAddress.toLowerCase();
+  const canMintFree = isOwner || isAuthorized;
+
+  // ============================================================
+
   const tiers = [
     { index: 0, price: "50", name: "IMMORTAL" },
     { index: 1, price: "30", name: "ELITE" },
@@ -67,34 +83,40 @@ export default function MintPage() {
         throw new Error("Please enter a name for your NFT");
       }
 
-      // --- مرحلة تجهيز الصورة ---
-      // ✅ 3. حل مشكلة الصورة: سنستخدم الرابط المضمون مؤقتاً بدلاً من API
-      // سنعيد تفعيل الـ API لاحقاً بعد التأكد من أن العقد يقبل الصور
-      setStatus("Preparing Metadata...");
-
-      // هذا الرابط يحتوي على صورة مضمونة تظهر في ميتا ماسك
+      // رابط الصورة الثابت (لضمان ظهورها مؤقتاً)
       const TEST_WORKING_URI = "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
       const finalURI = TEST_WORKING_URI;
-
-      /* * تم تعطيل الـ API مؤقتاً للتأكد من ظهور الصورة أولاً
-       * const response = await fetch("/api/mint", { ... });
-       * const { tokenURI: uploadedTokenURI } = await response.json();
-       */
-
       setTokenURI(finalURI);
-      setStatus("Metadata ready! Please confirm transaction...");
+
+      setStatus("Processing transaction...");
 
       try {
-        // إذا كان المستخدم أدمن، يستخدم دالة الحجز، وإلا يستخدم الشراء العام
-        // ملاحظة: قمت بضبط الكود ليستخدم الشراء العام للجميع حالياً للتجربة
-
-        await writeContractAsync({
-          functionName: "mintPublic",
-          args: [name.trim(), selectedTier, finalURI],
-          value: mintCost,
-        });
-
-        setStatus(`Success! Your NFT "${name}" has been minted. 🎉`);
+        if (isOwner) {
+          // 👑 إذا كان المالك: استخدم دالة الحجز الخاصة
+          console.log("Minting as Owner...");
+          await writeContractAsync({
+            functionName: "reserveName",
+            args: [name.trim(), selectedTier, finalURI],
+          });
+          setStatus(`Success! Owner Reserved "${name}" successfully.`);
+        } else if (isAuthorized) {
+          // 🛡️ إذا كان مصرحاً له (Whitelist): استخدم دالة التصريح
+          console.log("Minting as Authorized Wallet...");
+          await writeContractAsync({
+            functionName: "authorizedMint",
+            args: [name.trim(), selectedTier, finalURI],
+          });
+          setStatus(`Success! Authorized Mint for "${name}" completed.`);
+        } else {
+          // 💰 إذا كان مستخدماً عادياً: ادفع الفلوس
+          console.log("Minting as Public...");
+          await writeContractAsync({
+            functionName: "mintPublic",
+            args: [name.trim(), selectedTier, finalURI],
+            value: mintCost,
+          });
+          setStatus(`Success! Your NFT "${name}" has been minted. 🎉`);
+        }
 
         setName("");
         setNameAvailability("available");
@@ -124,6 +146,18 @@ export default function MintPage() {
         </h1>
 
         <div className="bg-base-100 rounded-3xl shadow-xl border-2 border-primary p-8">
+          {/* رسائل الترحيب حسب الحالة */}
+          {isOwner && (
+            <div className="alert alert-success mb-4 text-sm font-bold">
+              👑 Welcome Owner! You have unlimited free reserves.
+            </div>
+          )}
+          {!isOwner && isAuthorized && (
+            <div className="alert alert-info mb-4 text-sm font-bold">
+              🛡️ You are an Authorized Minter (Whitelist). Minting is Free.
+            </div>
+          )}
+
           {!connectedAddress ? (
             <div className="text-center">
               <p className="text-lg mb-4">Please connect your wallet to mint NFTs</p>
@@ -147,16 +181,8 @@ export default function MintPage() {
                   disabled={isLoading}
                   maxLength={50}
                 />
-
-                {name.trim().length >= 2 && nameAvailability === "available" && (
-                  <div className="text-success text-sm mt-1 font-bold">✓ Available</div>
-                )}
-                {name.trim().length >= 2 && nameAvailability === "taken" && (
-                  <div className="text-error text-sm mt-1 font-bold">✕ Taken</div>
-                )}
               </div>
 
-              {/* ✅ 4. تم إزالة الشرط (!isAllowed) لتظهر الأزرار لك وللجميع */}
               <div>
                 <label className="block text-sm font-medium mb-3">Choose Tier</label>
                 <div className="grid grid-cols-3 gap-3">
@@ -171,7 +197,10 @@ export default function MintPage() {
                       } flex flex-col h-auto py-4`}
                     >
                       <span className="text-xs opacity-70">{tier.name}</span>
-                      <span className="text-2xl font-bold">${tier.price}</span>
+                      <span className="text-2xl font-bold">
+                        {/* عرض السعر: مجاني للمالك والمصرح لهم، وبفلوس للبقية */}
+                        {canMintFree ? "FREE" : `$${tier.price}`}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -186,8 +215,12 @@ export default function MintPage() {
                     <span className="loading loading-spinner"></span>
                     Processing...
                   </>
+                ) : isOwner ? (
+                  "Reserve Name (Owner)"
+                ) : isAuthorized ? (
+                  "Mint Authorized (Free)"
                 ) : (
-                  `Mint NFT - $${tiers.find(t => t.index === selectedTier)?.price}`
+                  "Mint Now"
                 )}
               </button>
             </form>
