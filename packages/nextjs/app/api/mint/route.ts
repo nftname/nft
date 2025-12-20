@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
     }
 
     const pinataJWT = process.env.PINATA_JWT;
-    const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || "https://gateway.pinata.cloud";
 
     if (!pinataJWT) {
       return NextResponse.json({ error: "Pinata JWT not configured" }, { status: 500 });
@@ -31,45 +30,18 @@ export async function POST(request: NextRequest) {
 
     const svgContent = generateSVG(name, tier);
 
-    // Convert SVG string to Buffer (proper for Node.js environment)
+    // 🎨 Convert SVG to Base64 Data URI (Best for OpenSea - instant display)
     const svgBuffer = Buffer.from(svgContent, "utf-8");
-
-    // Create FormData with proper file handling for Node.js
-    const imageFormData = new FormData();
-
-    // Create a proper File-like blob with the SVG buffer
-    const imageBlob = new Blob([svgBuffer], { type: "image/svg+xml" });
-
-    // Append file with proper filename
-    imageFormData.append("file", imageBlob, `${name.replace(/[^a-zA-Z0-9]/g, "_")}.svg`);
-
-    const pinataMetadata = JSON.stringify({
-      name: `${name.replace(/[^a-zA-Z0-9]/g, "_")}.svg`,
-    });
-    imageFormData.append("pinataMetadata", pinataMetadata);
-
-    const imageUploadResponse = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${pinataJWT}`,
-      },
-      body: imageFormData,
-    });
-
-    if (!imageUploadResponse.ok) {
-      return NextResponse.json({ error: "Failed to upload image to IPFS" }, { status: 500 });
-    }
-
-    const imageData = await imageUploadResponse.json();
-    const imageIpfsHash = imageData.IpfsHash;
-    const imageUrl = `${gatewayUrl}/ipfs/${imageIpfsHash}`;
+    const base64SVG = svgBuffer.toString("base64");
+    const imageDataURI = `data:image/svg+xml;base64,${base64SVG}`;
 
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
 
+    // Create metadata with embedded SVG image
     const metadata = {
       name: name,
       description: FINAL_DESCRIPTION,
-      image: imageUrl,
+      image: imageDataURI, // ✅ Embedded Base64 SVG - works instantly on OpenSea
       external_url: "https://nftnamemarket.com",
       attributes: [
         { trait_type: "Generation", value: "GEN-0 Genesis" },
@@ -104,7 +76,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       tokenURI,
-      imageUrl,
+      imageDataURI,
       metadata,
     });
   } catch (error) {
