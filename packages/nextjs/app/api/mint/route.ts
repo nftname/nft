@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 
-// ✅ Force Node.js runtime (not Edge) to support Buffer and file operations
 export const runtime = "nodejs";
 
-// ✅ الوصف القانوني المعتمد
 const GLOBAL_DESCRIPTION = `GEN-0 Genesis — NNM Protocol Record
 
 A singular, unreplicable digital artifact.
@@ -31,34 +29,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // 1. توليد الصورة (باستخدام دالة التصميم الموجودة في الأسفل)
     const svgContent = generateSVG(name, tier);
-
-    // 2. تحويل SVG إلى PNG (800x800) باستخدام sharp
     const svgBuffer = Buffer.from(svgContent);
     const pngBuffer = await sharp(svgBuffer).resize(800, 800).png().toBuffer();
 
-    // ✅ Verify image buffer size before upload (required for Node.js runtime)
     console.log(`[NFT Image] SVG Buffer created: ${svgBuffer.length} bytes`);
     console.log(`[NFT Image] PNG Buffer created: ${pngBuffer.length} bytes`);
-    console.log(`[NFT Image] Runtime: Node.js`);
 
     const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
-
     const formData = new FormData();
     formData.append("file", blob, `${name.replace(/\s+/g, "_")}.png`);
 
-    // إعدادات بيناتا لتنظيم الملفات
     const pinataMetadata = JSON.stringify({ name: `${name}.png` });
     formData.append("pinataMetadata", pinataMetadata);
 
     const pinataOptions = JSON.stringify({ cidVersion: 1 });
     formData.append("pinataOptions", pinataOptions);
 
-    // 3. رفع الصورة
-    console.log("[NFT Upload] Uploading PNG Image to Pinata via Node.js runtime...");
-    console.log(`[NFT Upload] Image size: ${pngBuffer.length} bytes`);
-
+    console.log("[NFT Upload] Uploading PNG Image to Pinata...");
     const imageUploadRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
       headers: {
@@ -78,13 +66,11 @@ export async function POST(req: Request) {
     const imageUri = `ipfs://${imageIpfsHash}`;
     const imageGatewayUrl = `https://ipfs.io/ipfs/${imageIpfsHash}`;
 
-    console.log("[NFT Upload] ✅ Image Uploaded Successfully");
+    console.log(`[NFT Upload] ✅ Image Uploaded`);
     console.log(`[NFT Upload] IPFS Hash: ${imageIpfsHash}`);
     console.log(`[NFT Upload] Image IPFS URI: ${imageUri}`);
     console.log(`[NFT Upload] Image Gateway URL: ${imageGatewayUrl}`);
-    console.log(`[NFT Upload] 🌐 Direct Link: ${imageGatewayUrl}`);
 
-    // 4. رفع الميتا داتا (JSON)
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
 
     const metadata = {
@@ -112,16 +98,12 @@ export async function POST(req: Request) {
       }),
     });
 
-    if (!jsonUploadRes.ok) {
-      throw new Error("JSON Upload Failed");
-    }
+    if (!jsonUploadRes.ok) throw new Error("JSON Upload Failed");
 
     const jsonResult = await jsonUploadRes.json();
     const tokenUri = `ipfs://${jsonResult.IpfsHash}`;
 
-    console.log("[NFT Metadata] ✅ Metadata Uploaded Successfully");
-    console.log(`[NFT Metadata] CID: ${jsonResult.IpfsHash}`);
-    console.log(`[NFT Complete] ✅ NFT Ready for OpenSea & MetaMask`);
+    console.log(`[NFT Metadata] ✅ Metadata Uploaded`);
     console.log(`[NFT Complete] Token URI: ${tokenUri}`);
 
     return NextResponse.json({
@@ -132,21 +114,14 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error("Mint API Error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || "Failed to upload assets",
-      },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: error.message || "Failed to upload assets" }, { status: 500 });
   }
 }
 
 // ==========================================
-// 🎨 دالة الرسم (التصميم الذي تريده)
+// دوال SVG و XML
 // ==========================================
 
-// دالة لحماية النصوص من أخطاء XML
 function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, function (c) {
     switch (c) {
@@ -168,17 +143,13 @@ function escapeXml(unsafe: string): string {
 
 function generateSVG(name: string, tier: string) {
   const universalBorder = "#FCD535";
-
   let styles = { bg1: "#001f24", bg2: "#003840", border: "#008080", text: "#FCD535" };
 
   const t = tier?.toLowerCase() || "founder";
   if (t === "immortal") styles = { bg1: "#0a0a0a", bg2: "#1c1c1c", border: universalBorder, text: "#FCD535" };
   else if (t === "elite") styles = { bg1: "#2b0505", bg2: "#4a0a0a", border: "#ff3232", text: "#FCD535" };
 
-  // نظف الاسم وتأكد من XML escaping
   const cleanName = escapeXml(name.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase());
-
-  // أي نص ثابت نطبقه عليه escapeXml
   const textGenesis = escapeXml("GEN-0 GENESIS");
   const textOwned = escapeXml("OWNED & MINTED");
   const textYear = escapeXml("2025");
