@@ -33,9 +33,6 @@ export async function POST(req: Request) {
     const svgBuffer = Buffer.from(svgContent);
     const pngBuffer = await sharp(svgBuffer).resize(800, 800).png().toBuffer();
 
-    console.log(`[NFT Image] SVG Buffer created: ${svgBuffer.length} bytes`);
-    console.log(`[NFT Image] PNG Buffer created: ${pngBuffer.length} bytes`);
-
     const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
     const formData = new FormData();
     formData.append("file", blob, `${name.replace(/\s+/g, "_")}.png`);
@@ -46,30 +43,18 @@ export async function POST(req: Request) {
     const pinataOptions = JSON.stringify({ cidVersion: 1 });
     formData.append("pinataOptions", pinataOptions);
 
-    console.log("[NFT Upload] Uploading PNG Image to Pinata...");
     const imageUploadRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.PINATA_JWT}`,
-      },
+      headers: { Authorization: `Bearer ${process.env.PINATA_JWT}` },
       body: formData,
     });
 
-    if (!imageUploadRes.ok) {
-      const errorText = await imageUploadRes.text();
-      console.error("Pinata Image Error:", errorText);
-      throw new Error("Image Upload Failed");
-    }
+    if (!imageUploadRes.ok) throw new Error(await imageUploadRes.text());
 
     const imageResult = await imageUploadRes.json();
     const imageIpfsHash = imageResult.IpfsHash;
     const imageUri = `ipfs://${imageIpfsHash}`;
     const imageGatewayUrl = `https://ipfs.io/ipfs/${imageIpfsHash}`;
-
-    console.log(`[NFT Upload] ✅ Image Uploaded`);
-    console.log(`[NFT Upload] IPFS Hash: ${imageIpfsHash}`);
-    console.log(`[NFT Upload] Image IPFS URI: ${imageUri}`);
-    console.log(`[NFT Upload] Image Gateway URL: ${imageGatewayUrl}`);
 
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
 
@@ -103,9 +88,6 @@ export async function POST(req: Request) {
     const jsonResult = await jsonUploadRes.json();
     const tokenUri = `ipfs://${jsonResult.IpfsHash}`;
 
-    console.log(`[NFT Metadata] ✅ Metadata Uploaded`);
-    console.log(`[NFT Complete] Token URI: ${tokenUri}`);
-
     return NextResponse.json({
       success: true,
       tokenURI: tokenUri,
@@ -113,14 +95,9 @@ export async function POST(req: Request) {
       imageGateway: imageGatewayUrl,
     });
   } catch (error: any) {
-    console.error("Mint API Error:", error);
     return NextResponse.json({ success: false, error: error.message || "Failed to upload assets" }, { status: 500 });
   }
 }
-
-// ==========================================
-// دوال SVG و XML
-// ==========================================
 
 function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, function (c) {
@@ -162,29 +139,21 @@ function generateSVG(name: string, tier: string) {
       <stop offset="100%" style="stop-color:${styles.bg2};stop-opacity:1" />
     </linearGradient>
     <pattern id="subtlePattern" width="20" height="20" patternUnits="userSpaceOnUse">
-        <circle cx="1" cy="1" r="1" fill="${styles.border}" fill-opacity="0.05" />
+      <circle cx="1" cy="1" r="1" fill="${styles.border}" fill-opacity="0.05" />
     </pattern>
     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur stdDeviation="10" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
-  
+
   <rect width="100%" height="100%" fill="#050505" />
   <rect x="50" y="50" width="700" height="700" rx="40" ry="40" fill="url(#bgGradient)" stroke="${styles.border}" stroke-width="6" />
   <rect x="50" y="50" width="700" height="700" rx="40" ry="40" fill="url(#subtlePattern)" />
   <rect x="70" y="70" width="660" height="660" rx="30" ry="30" fill="none" stroke="${styles.border}" stroke-width="1" stroke-opacity="0.4" />
 
   <text x="400" y="200" text-anchor="middle" font-family="serif" font-size="32" fill="${styles.text}" letter-spacing="8" font-weight="bold">${textGenesis}</text>
-  
-  <line x1="200" y1="240" x2="600" y2="240" stroke="${styles.border}" stroke-width="1" opacity="0.5" />
-  
   <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" font-family="serif" font-size="80" fill="${styles.text}" font-weight="900" letter-spacing="4" filter="url(#glow)">${cleanName}</text>
-  
-  <line x1="200" y1="560" x2="600" y2="560" stroke="${styles.border}" stroke-width="1" opacity="0.5" />
-  
-  <text x="400" y="620" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#ffffff" letter-spacing="6" opacity="0.7">${textOwned}</text>
-  <text x="400" y="670" text-anchor="middle" font-family="serif" font-size="28" fill="${styles.border}" letter-spacing="4" font-weight="bold">${textYear}</text>
-</svg>
-  `.trim();
+  <text x="400" y="620" text-anchor="middle" font-family="serif" font-size="32" fill="${styles.text}" font-weight="bold">${textOwned} ${textYear}</text>
+</svg>`.trim();
 }
