@@ -145,12 +145,33 @@ export async function POST(req: Request) {
 // ==========================================
 // 🎨 دالة الرسم (التصميم الذي تريده)
 // ==========================================
+
+// دالة لحماية النصوص من أخطاء XML
+function escapeXml(unsafe: string): string {
+  return unsafe.replace(/[<>&'"]/g, function (c) {
+    switch (c) {
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case "&":
+        return "&amp;";
+      case "'":
+        return "&apos;";
+      case '"':
+        return "&quot;";
+      default:
+        return c;
+    }
+  });
+}
+
 function generateSVG(name: string, tier: string) {
   const universalBorder = "#FCD535";
 
   let styles = {
     bg1: "#001f24",
-    bg2: "#003840", // Founder (Default)
+    bg2: "#003840",
     border: "#008080",
     text: "#FCD535",
   };
@@ -173,8 +194,9 @@ function generateSVG(name: string, tier: string) {
     };
   }
 
-  // تنظيف الاسم من الرموز للرسم
-  const cleanName = name.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase();
+  // تنظيف الاسم من رموز غير مسموحة، ثم escape XML
+  let cleanName = name.replace(/[^a-zA-Z0-9 \-&]/g, "").toUpperCase();
+  cleanName = escapeXml(cleanName);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
@@ -209,6 +231,5 @@ function generateSVG(name: string, tier: string) {
   
   <text x="400" y="620" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#ffffff" letter-spacing="6" opacity="0.7">OWNED & MINTED</text>
   <text x="400" y="670" text-anchor="middle" font-family="serif" font-size="28" fill="${styles.border}" letter-spacing="4" font-weight="bold">2025</text>
-</svg>
-  `.trim();
+</svg>`.trim();
 }
