@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import sharp from "sharp";
 
 export const runtime = "nodejs";
 
@@ -28,19 +29,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // 1. توليد كود SVG
+    // 1. توليد كود الرسم (SVG)
     const svgContent = generateSVG(name, tier);
-
-    // 2. تحويل SVG إلى Buffer (نظام ثنائي)
-    // 🛑 هذا هو السطر السحري الذي يحل مشكلة "الشاشة البيضاء" و "الملف التالف"
     const svgBuffer = Buffer.from(svgContent);
 
-    // 3. تجهيز الملف للرفع كـ SVG صريح
-    const blob = new Blob([svgBuffer], { type: "image/svg+xml" });
-    const formData = new FormData();
-    formData.append("file", blob, `${name.replace(/\s+/g, "_")}.svg`);
+    // 2. تحويل SVG إلى PNG (الحل الذي أظهر الخلفية سابقاً)
+    // استخدام sharp يضمن أن الملف يخرج كصورة حقيقية
+    const pngBuffer = await sharp(svgBuffer).resize(800, 800).png().toBuffer();
 
-    const pinataMetadata = JSON.stringify({ name: `${name}.svg` });
+    // 3. تجهيز الملف للرفع
+    const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
+    const formData = new FormData();
+    formData.append("file", blob, `${name.replace(/\s+/g, "_")}.png`);
+
+    const pinataMetadata = JSON.stringify({ name: `${name}.png` });
     formData.append("pinataMetadata", pinataMetadata);
 
     const pinataOptions = JSON.stringify({ cidVersion: 1 });
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
 
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
 
-    // 5. تجهيز ورفع الميتا داتا
+    // 5. رفع الميتا داتا
     const metadata = {
       name: name,
       description: GLOBAL_DESCRIPTION,
@@ -125,7 +127,7 @@ function escapeXml(unsafe: string): string {
 }
 
 // =================================================================
-// 🎨 دالة الرسم (SVG)
+// 🎨 دالة الرسم (تم تغيير الخطوط لحل مشكلة المربعات)
 // =================================================================
 function generateSVG(name: string, tier: string) {
   const universalBorder = "#FCD535";
@@ -137,10 +139,10 @@ function generateSVG(name: string, tier: string) {
 
   const cleanName = escapeXml(name.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase());
 
-  // استخدام خطوط النظام العامة لضمان عملها على كل المتصفحات
-  // هذا يضمن أن المتصفح سيختار أفضل خط متاح لديه ولن يظهر مربعات
-  const fontStack =
-    "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', Arial, sans-serif";
+  // ⚠️ التعديل الجوهري:
+  // استخدام خط 'sans-serif' فقط. هذا الخط موجود في كل أنظمة التشغيل والسيرفرات كخط احتياطي.
+  // تم إزالة 'serif' وأي خطوط مزخرفة لأنها السبب في ظهور المربعات.
+  const fontMain = "sans-serif";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
@@ -163,12 +165,12 @@ function generateSVG(name: string, tier: string) {
   <rect x="50" y="50" width="700" height="700" rx="40" ry="40" fill="url(#subtlePattern)" />
   <rect x="70" y="70" width="660" height="660" rx="30" ry="30" fill="none" stroke="${styles.border}" stroke-width="1" stroke-opacity="0.4" />
 
-  <text x="400" y="200" text-anchor="middle" font-family="${fontStack}" font-size="32" fill="${styles.text}" letter-spacing="8" font-weight="bold">GEN-0 GENESIS</text>
+  <text x="400" y="200" text-anchor="middle" font-family="${fontMain}" font-size="32" fill="${styles.text}" letter-spacing="8" font-weight="bold">GEN-0 GENESIS</text>
   
-  <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" font-family="${fontStack}" font-size="80" fill="${styles.text}" font-weight="900" letter-spacing="4" filter="url(#glow)">${cleanName}</text>
+  <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" font-family="${fontMain}" font-size="80" fill="${styles.text}" font-weight="900" letter-spacing="4" filter="url(#glow)">${cleanName}</text>
   
-  <text x="400" y="620" text-anchor="middle" font-family="${fontStack}" font-size="24" fill="#ffffff" letter-spacing="6" opacity="0.8">OWNED &amp; MINTED</text>
+  <text x="400" y="620" text-anchor="middle" font-family="${fontMain}" font-size="24" fill="#ffffff" letter-spacing="6" opacity="0.8">OWNED AND MINTED</text>
   
-  <text x="400" y="670" text-anchor="middle" font-family="${fontStack}" font-size="32" fill="${styles.text}" font-weight="bold">2025</text>
+  <text x="400" y="670" text-anchor="middle" font-family="${fontMain}" font-size="32" fill="${styles.text}" font-weight="bold">2025</text>
 </svg>`.trim();
 }
