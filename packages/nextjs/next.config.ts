@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;
   },
+  // ✅ تضمين ملفات الخطوط في الـ standalone build
+  outputFileTracingIncludes: {
+    "/api/mint": ["./public/fonts/**/*"],
+  },
 };
 
 const isIpfs = process.env.NEXT_PUBLIC_IPFS_BUILD === "true";

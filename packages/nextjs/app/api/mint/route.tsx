@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { ImageResponse } from "@vercel/og";
+import { readFile } from "fs/promises";
+import { join } from "path";
 
-// ✅ نعود لاستخدام Edge لأنه الأفضل مع Fetch والأسرع في معالجة الصور
-export const runtime = "edge";
+// ✅ استخدام Node.js Runtime للوصول إلى filesystem
+export const runtime = "nodejs";
 
 const GLOBAL_DESCRIPTION = `GEN-0 Genesis — NNM Protocol Record
 A singular, unreplicable digital artifact.
@@ -15,12 +17,11 @@ export async function POST(req: Request) {
     if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
     // =========================================================================
-    // 1. 🔤 تحميل الخط المحلي باستخدام import.meta.url
-    // ✅ هذه الطريقة تعمل بشكل مثالي في Edge Runtime
+    // 1. 🔤 تحميل الخط المحلي باستخدام fs/promises
+    // ✅ يعمل في Node.js Runtime مع outputFileTracingIncludes
     // =========================================================================
-    const fontData = await fetch(new URL("../../../public/fonts/Cinzel-Bold.ttf", import.meta.url)).then(res =>
-      res.arrayBuffer(),
-    );
+    const fontPath = join(process.cwd(), "public", "fonts", "Cinzel-Bold.ttf");
+    const fontData = await readFile(fontPath);
 
     // 2. 🎨 تحديد الألوان
     const t = tier?.toLowerCase() || "founder";
