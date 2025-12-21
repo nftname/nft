@@ -36,8 +36,12 @@ export async function POST(req: Request) {
     const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
     const formData = new FormData();
     formData.append("file", blob, `${name.replace(/\s+/g, "_")}.png`);
-    formData.append("pinataMetadata", JSON.stringify({ name: `${name}.png` }));
-    formData.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
+
+    const pinataMetadata = JSON.stringify({ name: `${name}.png` });
+    formData.append("pinataMetadata", pinataMetadata);
+
+    const pinataOptions = JSON.stringify({ cidVersion: 1 });
+    formData.append("pinataOptions", pinataOptions);
 
     const imageUploadRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
@@ -45,7 +49,7 @@ export async function POST(req: Request) {
       body: formData,
     });
 
-    if (!imageUploadRes.ok) throw new Error("Image Upload Failed");
+    if (!imageUploadRes.ok) throw new Error(await imageUploadRes.text());
 
     const imageResult = await imageUploadRes.json();
     const imageIpfsHash = imageResult.IpfsHash;
@@ -116,7 +120,7 @@ function escapeXml(unsafe: string): string {
 
 function generateSVG(name: string, tier: string) {
   const universalBorder = "#FCD535";
-  let styles = { bg1: "#001f24", bg2: "#003840", border: "#FCD535", text: "#FCD535" };
+  let styles = { bg1: "#001f24", bg2: "#003840", border: "#008080", text: "#FCD535" };
 
   const t = tier?.toLowerCase() || "founder";
   if (t === "immortal") styles = { bg1: "#0a0a0a", bg2: "#1c1c1c", border: universalBorder, text: "#FCD535" };
@@ -134,22 +138,22 @@ function generateSVG(name: string, tier: string) {
       <stop offset="0%" style="stop-color:${styles.bg1};stop-opacity:1" />
       <stop offset="100%" style="stop-color:${styles.bg2};stop-opacity:1" />
     </linearGradient>
-    <style type="text/css">
-      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap');
-    </style>
+    <pattern id="subtlePattern" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="${styles.border}" fill-opacity="0.05" />
+    </pattern>
     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur stdDeviation="10" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
 
-  <rect width="100%" height="100%" fill="url(#bgGradient)" rx="40" ry="40" stroke="${styles.border}" stroke-width="2" />
+  <rect width="100%" height="100%" fill="#050505" />
+  <rect x="50" y="50" width="700" height="700" rx="40" ry="40" fill="url(#bgGradient)" stroke="${styles.border}" stroke-width="6" />
+  <rect x="50" y="50" width="700" height="700" rx="40" ry="40" fill="url(#subtlePattern)" />
+  <rect x="70" y="70" width="660" height="660" rx="30" ry="30" fill="none" stroke="${styles.border}" stroke-width="1" stroke-opacity="0.4" />
 
-  <text x="400" y="150" text-anchor="middle" font-family="'Playfair Display', serif" font-size="36" fill="${styles.text}" font-weight="700">${textGenesis}</text>
-
-  <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" font-family="'Playfair Display', serif" font-size="80" fill="${styles.text}" font-weight="900" filter="url(#glow)">${cleanName}</text>
-
-  <text x="400" y="700" text-anchor="middle" font-family="'Playfair Display', serif" font-size="32" fill="${styles.text}" font-weight="700">${textYear}</text>
-</svg>
-  `.trim();
+  <text x="400" y="200" text-anchor="middle" font-family="serif" font-size="32" fill="${styles.text}" letter-spacing="8" font-weight="bold">${textGenesis}</text>
+  <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" font-family="serif" font-size="80" fill="${styles.text}" font-weight="900" letter-spacing="4" filter="url(#glow)">${cleanName}</text>
+  <text x="400" y="620" text-anchor="middle" font-family="serif" font-size="32" fill="${styles.text}" font-weight="bold">${textOwned} ${textYear}</text>
+</svg>`.trim();
 }
