@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-// تأكد أن sharp مثبت في مشروعك (npm install sharp)
 import sharp from "sharp";
 
 export const runtime = "nodejs";
@@ -34,8 +33,7 @@ export async function POST(req: Request) {
     const svgContent = generateSVG(name, tier);
     const svgBuffer = Buffer.from(svgContent);
 
-    // 2. تحويل SVG إلى PNG باستخدام sharp مع إعدادات "آمنة"
-    // قمنا بإزالة الخلفية الشفافة ووضعنا خلفية سوداء لضمان عدم ظهور شاشة بيضاء
+    // 2. تحويل SVG إلى PNG
     const pngBuffer = await sharp(svgBuffer).resize(800, 800).png({ quality: 90, compressionLevel: 9 }).toBuffer();
 
     // 3. تجهيز الملف للرفع
@@ -49,7 +47,7 @@ export async function POST(req: Request) {
     const pinataOptions = JSON.stringify({ cidVersion: 1 });
     formData.append("pinataOptions", pinataOptions);
 
-    // 4. رفع الصورة إلى Pinata
+    // 4. رفع الصورة
     const imageUploadRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.PINATA_JWT}` },
@@ -61,16 +59,15 @@ export async function POST(req: Request) {
     const imageResult = await imageUploadRes.json();
     const imageIpfsHash = imageResult.IpfsHash;
     const imageUri = `ipfs://${imageIpfsHash}`;
-    // رابط Gateway سريع للعرض المباشر
     const imageGatewayUrl = `https://gateway.pinata.cloud/ipfs/${imageIpfsHash}`;
 
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
 
-    // 5. تجهيز ورفع الميتا داتا
+    // 5. الميتا داتا
     const metadata = {
       name: name,
       description: GLOBAL_DESCRIPTION,
-      image: imageUri, // الرابط الرسمي (ipfs://)
+      image: imageUri,
       external_url: "https://nftnamemarket.com",
       attributes: [
         { trait_type: "Generation", value: "GEN-0 Genesis" },
@@ -109,7 +106,6 @@ export async function POST(req: Request) {
   }
 }
 
-// دالة لتنظيف النصوص من الرموز التي قد تكسر الكود
 function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, function (c) {
     switch (c) {
@@ -130,7 +126,7 @@ function escapeXml(unsafe: string): string {
 }
 
 // =================================================================
-// 🎨 دالة الرسم (تم تعديل الخطوط لحل مشكلة المربعات)
+// 🎨 دالة الرسم (تم إصلاح رمز & والخطوط)
 // =================================================================
 function generateSVG(name: string, tier: string) {
   const universalBorder = "#FCD535";
@@ -142,8 +138,7 @@ function generateSVG(name: string, tier: string) {
 
   const cleanName = escapeXml(name.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase());
 
-  // ⚠️ التعديل الجوهري: استخدام خطوط "Sans-serif" بدلاً من "Serif"
-  // لأن السيرفرات غالباً لا تحتوي على خطوط Serif مزخرفة، مما يسبب ظهور المربعات
+  // استخدام خطوط النظام لحل مشكلة المربعات
   const fontMain = "Arial, sans-serif";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -171,7 +166,7 @@ function generateSVG(name: string, tier: string) {
   
   <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" font-family="${fontMain}" font-size="80" fill="${styles.text}" font-weight="900" letter-spacing="4" filter="url(#glow)">${cleanName}</text>
   
-  <text x="400" y="620" text-anchor="middle" font-family="${fontMain}" font-size="24" fill="#ffffff" letter-spacing="6" opacity="0.8">OWNED & MINTED</text>
+  <text x="400" y="620" text-anchor="middle" font-family="${fontMain}" font-size="24" fill="#ffffff" letter-spacing="6" opacity="0.8">OWNED &amp; MINTED</text>
   
   <text x="400" y="670" text-anchor="middle" font-family="${fontMain}" font-size="32" fill="${styles.text}" font-weight="bold">2025</text>
 </svg>`.trim();
