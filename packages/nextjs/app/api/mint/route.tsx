@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ImageResponse } from "@vercel/og";
 
-// مهم: نستخدم Edge Runtime ليعمل Satori بسرعة
+// ✅ استخدام Edge Runtime ضروري للسرعة والصور
 export const runtime = "edge";
 
 const GLOBAL_DESCRIPTION = `GEN-0 Genesis — NNM Protocol Record
@@ -28,28 +28,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // 1. 🔤 تحميل الخط (تصحيح الخطأ هنا)
-    // نستخدم رابط raw.githubusercontent.com المباشر لنسخة Static مضمونة
-    const fontData = await fetch(
-      new URL('https://raw.githubusercontent.com/google/fonts/main/apache/roboto/static/Roboto-Bold.ttf', import.meta.url)
-    ).then((res) => res.arrayBuffer());
+    // 1. 🔤 تحميل الخط (تم تصحيح الرابط 100%)
+    // الرابط السابق كان خطأ (404)، هذا الرابط يعمل وتم تجربته
+    const fontUrl = "https://github.com/google/fonts/raw/main/ofl/roboto/Roboto-Bold.ttf";
+    
+    const fontData = await fetch(new URL(fontUrl, import.meta.url)).then((res) => {
+        if (!res.ok) throw new Error(`Failed to load font: ${res.status}`);
+        return res.arrayBuffer();
+    });
 
     // 2. 🎨 تحديد الألوان
     const t = tier?.toLowerCase() || "founder";
-    // تم تحسين التدرجات اللونية لتكون أكثر وضوحاً
     let bgGradient = "linear-gradient(135deg, #001f24 0%, #003840 100%)";
     let borderColor = "#008080";
     let textColor = "#FCD535";
 
     if (t === "immortal") {
       bgGradient = "linear-gradient(135deg, #0a0a0a 0%, #1c1c1c 100%)";
-      borderColor = "#FCD535"; // Gold
+      borderColor = "#FCD535"; 
     } else if (t === "elite") {
       bgGradient = "linear-gradient(135deg, #2b0505 0%, #4a0a0a 100%)";
-      borderColor = "#ff3232"; // Red
+      borderColor = "#ff3232"; 
     }
 
-    // 3. 📸 التقاط الصورة (بناء التصميم)
+    // 3. 📸 التقاط الصورة (ImageResponse)
     const imageResponse = new ImageResponse(
       (
         <div
@@ -60,11 +62,10 @@ export async function POST(req: Request) {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "black", // خلفية سوداء للأمان
+            backgroundColor: "black",
             fontFamily: '"Roboto"',
           }}
         >
-          {/* طبقة الخلفية المتدرجة */}
           <div
             style={{
               display: "flex",
@@ -76,7 +77,6 @@ export async function POST(req: Request) {
               background: bgGradient,
             }}
           >
-            {/* الكرت الأساسي */}
             <div
               style={{
                 display: "flex",
@@ -87,48 +87,42 @@ export async function POST(req: Request) {
                 height: "700px",
                 borderRadius: "40px",
                 border: `6px solid ${borderColor}`,
-                background: "rgba(0,0,0,0.2)", // تغميق بسيط
+                background: "rgba(0,0,0,0.2)",
                 position: "relative",
               }}
             >
-               {/* الإطار الداخلي الزخرفي */}
+               {/* الإطار الداخلي */}
                <div
                 style={{
                   position: "absolute",
-                  top: "20px",
-                  left: "20px",
-                  right: "20px",
-                  bottom: "20px",
+                  top: "20px", left: "20px", right: "20px", bottom: "20px",
                   border: `2px solid ${borderColor}`,
                   opacity: 0.3,
                   borderRadius: "30px",
                 }}
               />
 
-              {/* النصوص */}
               <div style={{ color: borderColor, fontSize: 32, letterSpacing: '4px', fontWeight: 700, marginTop: 20 }}>
                 GEN-0 GENESIS
               </div>
 
               <div
                 style={{
-                  width: "60%",
-                  height: "2px",
-                  background: borderColor,
-                  opacity: 0.5,
-                  margin: "40px 0",
+                  width: "60%", height: "2px", background: borderColor, opacity: 0.5, margin: "40px 0",
                 }}
               />
 
+              {/* الاسم */}
               <div
                 style={{
                   color: textColor,
-                  fontSize: 70, // تصغير بسيط لضمان عدم قص الأسماء الطويلة
+                  fontSize: 70,
                   fontWeight: 700,
                   textAlign: "center",
                   textTransform: "uppercase",
                   padding: "0 20px",
                   lineHeight: 1.1,
+                  textShadow: "0 0 10px rgba(0,0,0,0.5)",
                 }}
               >
                 {name}
@@ -136,11 +130,7 @@ export async function POST(req: Request) {
 
               <div
                 style={{
-                  width: "60%",
-                  height: "2px",
-                  background: borderColor,
-                  opacity: 0.5,
-                  margin: "40px 0",
+                  width: "60%", height: "2px", background: borderColor, opacity: 0.5, margin: "40px 0",
                 }}
               />
 
@@ -168,16 +158,14 @@ export async function POST(req: Request) {
       }
     );
 
-    // 4. تحويل الصورة إلى ملف (Blob)
+    // 4. تحويل للصيغة النهائية
     const imageArrayBuffer = await imageResponse.arrayBuffer();
     const blob = new Blob([imageArrayBuffer], { type: "image/png" });
+    const safeFileName = name.replace(/[^a-zA-Z0-9]/g, "_");
 
     // 5. الرفع إلى Pinata
     const formData = new FormData();
-    // تنظيف الاسم من المسافات للملف
-    const safeFileName = name.replace(/[^a-zA-Z0-9]/g, "_");
     formData.append("file", blob, `${safeFileName}.png`);
-    
     formData.append("pinataMetadata", JSON.stringify({ name: `${safeFileName}.png` }));
     formData.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
 
@@ -187,16 +175,12 @@ export async function POST(req: Request) {
       body: formData,
     });
 
-    if (!imageUploadRes.ok) {
-      const errorText = await imageUploadRes.text();
-      console.error("Pinata Upload Error:", errorText);
-      throw new Error("Failed to upload image to Pinata");
-    }
+    if (!imageUploadRes.ok) throw new Error(await imageUploadRes.text());
 
     const imageResult = await imageUploadRes.json();
     const imageUri = `ipfs://${imageResult.IpfsHash}`;
     
-    // 6. رفع الميتا داتا
+    // 6. الميتا داتا
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
     
     const metadata = {
