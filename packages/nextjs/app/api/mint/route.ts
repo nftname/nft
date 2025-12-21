@@ -29,15 +29,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // 1. توليد كود الرسم (SVG)
-    const svgContent = generateSVG(name, tier);
+    // 1. تحميل الخط الفخم (Cinzel) ودمجه لضمان عدم ظهور المربعات
+    // نحن هنا نعطي "الرسام" الفرشاة التي تنقصه
+    const fontBase64 = await fetchFont();
+
+    // 2. توليد الصورة مع الخط المدمج
+    const svgContent = generateSVG(name, tier, fontBase64);
     const svgBuffer = Buffer.from(svgContent);
 
-    // 2. تحويل SVG إلى PNG (الحل الذي أظهر الخلفية سابقاً)
-    // استخدام sharp يضمن أن الملف يخرج كصورة حقيقية
+    // 3. تحويل إلى PNG (صورة صماء جاهزة)
     const pngBuffer = await sharp(svgBuffer).resize(800, 800).png().toBuffer();
 
-    // 3. تجهيز الملف للرفع
     const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
     const formData = new FormData();
     formData.append("file", blob, `${name.replace(/\s+/g, "_")}.png`);
@@ -48,7 +50,6 @@ export async function POST(req: Request) {
     const pinataOptions = JSON.stringify({ cidVersion: 1 });
     formData.append("pinataOptions", pinataOptions);
 
-    // 4. رفع الصورة إلى Pinata
     const imageUploadRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.PINATA_JWT}` },
@@ -64,7 +65,6 @@ export async function POST(req: Request) {
 
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
 
-    // 5. رفع الميتا داتا
     const metadata = {
       name: name,
       description: GLOBAL_DESCRIPTION,
@@ -107,6 +107,19 @@ export async function POST(req: Request) {
   }
 }
 
+// دالة لجلب خط فخم من الإنترنت وتحويله لكود يمكن دمجه
+async function fetchFont() {
+  try {
+    // نستخدم خط Cinzel وهو خط فخم جداً ومناسب للشهادات والذهب
+    const response = await fetch("https://github.com/google/fonts/raw/main/ofl/cinzel/Cinzel-Bold.ttf");
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer).toString("base64");
+  } catch (e) {
+    console.error("Failed to load font", e);
+    return ""; // في حالة الفشل سيعود للخط العادي
+  }
+}
+
 function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, function (c) {
     switch (c) {
@@ -127,9 +140,9 @@ function escapeXml(unsafe: string): string {
 }
 
 // =================================================================
-// 🎨 دالة الرسم (تم تغيير الخطوط لحل مشكلة المربعات)
+// 🎨 دالة الرسم (مع دمج الخط)
 // =================================================================
-function generateSVG(name: string, tier: string) {
+function generateSVG(name: string, tier: string, fontBase64: string) {
   const universalBorder = "#FCD535";
   let styles = { bg1: "#001f24", bg2: "#003840", border: "#008080", text: "#FCD535" };
 
@@ -139,14 +152,25 @@ function generateSVG(name: string, tier: string) {
 
   const cleanName = escapeXml(name.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase());
 
-  // ⚠️ التعديل الجوهري:
-  // استخدام خط 'sans-serif' فقط. هذا الخط موجود في كل أنظمة التشغيل والسيرفرات كخط احتياطي.
-  // تم إزالة 'serif' وأي خطوط مزخرفة لأنها السبب في ظهور المربعات.
-  const fontMain = "sans-serif";
+  // دمج الخط داخل الصورة
+  const fontFace = fontBase64
+    ? `
+    @font-face {
+      font-family: 'Cinzel';
+      src: url(data:font/ttf;base64,${fontBase64}) format('truetype');
+      font-weight: bold;
+      font-style: normal;
+    }
+    .custom-font { font-family: 'Cinzel', serif; }
+  `
+    : `.custom-font { font-family: sans-serif; }`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <style>
+      ${fontFace}
+    </style>
     <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:${styles.bg1};stop-opacity:1" />
       <stop offset="100%" style="stop-color:${styles.bg2};stop-opacity:1" />
@@ -165,12 +189,12 @@ function generateSVG(name: string, tier: string) {
   <rect x="50" y="50" width="700" height="700" rx="40" ry="40" fill="url(#subtlePattern)" />
   <rect x="70" y="70" width="660" height="660" rx="30" ry="30" fill="none" stroke="${styles.border}" stroke-width="1" stroke-opacity="0.4" />
 
-  <text x="400" y="200" text-anchor="middle" font-family="${fontMain}" font-size="32" fill="${styles.text}" letter-spacing="8" font-weight="bold">GEN-0 GENESIS</text>
+  <text x="400" y="200" text-anchor="middle" class="custom-font" font-size="32" fill="${styles.text}" letter-spacing="8" font-weight="bold">GEN-0 GENESIS</text>
   
-  <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" font-family="${fontMain}" font-size="80" fill="${styles.text}" font-weight="900" letter-spacing="4" filter="url(#glow)">${cleanName}</text>
+  <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" class="custom-font" font-size="80" fill="${styles.text}" font-weight="900" letter-spacing="4" filter="url(#glow)">${cleanName}</text>
   
-  <text x="400" y="620" text-anchor="middle" font-family="${fontMain}" font-size="24" fill="#ffffff" letter-spacing="6" opacity="0.8">OWNED AND MINTED</text>
+  <text x="400" y="620" text-anchor="middle" class="custom-font" font-size="24" fill="#ffffff" letter-spacing="6" opacity="0.8">OWNED AND MINTED</text>
   
-  <text x="400" y="670" text-anchor="middle" font-family="${fontMain}" font-size="32" fill="${styles.text}" font-weight="bold">2025</text>
+  <text x="400" y="670" text-anchor="middle" class="custom-font" font-size="32" fill="${styles.text}" font-weight="bold">2025</text>
 </svg>`.trim();
 }
