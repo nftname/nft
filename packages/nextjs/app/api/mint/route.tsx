@@ -2,28 +2,28 @@ import { NextResponse } from "next/server";
 import { ImageResponse } from "@vercel/og";
 import { readFile } from "fs/promises";
 import { join } from "path";
+import { PinataSDK } from "pinata";
 
-// ✅ استخدام Node.js Runtime للوصول إلى filesystem
 export const runtime = "nodejs";
 
-const GLOBAL_DESCRIPTION = `GEN-0 Genesis — NNM Protocol Record
-A singular, unreplicable digital artifact.
-Ownership is absolute, cryptographically secured, and fully transferable.`;
+export async function GET(req: Request) {
+  return POST(req);
+}
 
 export async function POST(req: Request) {
   try {
+    const pinata = new PinataSDK({
+      pinataJwt: process.env.PINATA_JWT,
+      pinataGateway: "beige-kind-cricket-922.mypinata.cloud",
+    });
+
     const { name, tier, mode } = await req.json();
 
     if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
-    // =========================================================================
-    // 1. 🔤 تحميل الخط المحلي باستخدام fs/promises
-    // ✅ يعمل في Node.js Runtime مع outputFileTracingIncludes
-    // =========================================================================
     const fontPath = join(process.cwd(), "public", "fonts", "Cinzel-Bold.ttf");
     const fontData = await readFile(fontPath);
 
-    // 2. 🎨 تحديد الألوان
     const t = tier?.toLowerCase() || "founder";
     let bgGradient = "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)";
     let borderColor = "#FCD535";
@@ -39,7 +39,6 @@ export async function POST(req: Request) {
       textColor = "#FCA5A5";
     }
 
-    // 4. 📸 تصميم الكرت
     const element = (
       <div
         style={{
@@ -50,7 +49,7 @@ export async function POST(req: Request) {
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "black",
-          fontFamily: fontData ? '"Cinzel"' : "sans-serif", // استخدام الخط المتاح
+          fontFamily: fontData ? '"Cinzel"' : "sans-serif",
         }}
       >
         <div
@@ -64,7 +63,6 @@ export async function POST(req: Request) {
             background: bgGradient,
           }}
         >
-          {/* الإطار */}
           <div
             style={{
               display: "flex",
@@ -78,7 +76,6 @@ export async function POST(req: Request) {
               position: "relative",
             }}
           >
-            {/* الزوايا */}
             <div
               style={{
                 position: "absolute",
@@ -167,78 +164,40 @@ export async function POST(req: Request) {
       ],
     };
 
-    // =========================================================================
-    // 🚦 وضع المعاينة (Preview Mode)
-    // =========================================================================
     if (mode === "preview") {
       return new ImageResponse(element, imageOptions);
     }
 
-    // =========================================================================
-    // 🚀 وضع الصك (Mint Mode)
-    // =========================================================================
     const imageResponse = new ImageResponse(element, imageOptions);
     const imageArrayBuffer = await imageResponse.arrayBuffer();
-    const blob = new Blob([imageArrayBuffer], { type: "image/png" });
+
     const safeFileName = name.replace(/[^a-zA-Z0-9]/g, "_");
+    const file = new File([imageArrayBuffer], `${safeFileName}.png`, { type: "image/png" });
 
-    // تحقق من متغيرات البيئة قبل الرفع
-    if (!process.env.PINATA_JWT) {
-      console.error("Missing PINATA_JWT");
-      throw new Error("Server Config: Missing Pinata Token");
-    }
-
-    const formData = new FormData();
-    formData.append("file", blob, `${safeFileName}.png`);
-    formData.append("pinataMetadata", JSON.stringify({ name: `${safeFileName}.png` }));
-    formData.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
-
-    const imageUploadRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.PINATA_JWT}` },
-      body: formData,
-    });
-
-    if (!imageUploadRes.ok) {
-      const errText = await imageUploadRes.text();
-      console.error("Pinata Upload Error:", errText);
-      throw new Error("Failed to upload image to IPFS");
-    }
-
-    const imageResult = await imageUploadRes.json();
-    const imageUri = `ipfs://${imageResult.IpfsHash}`;
+    const uploadImage = await pinata.upload.public.file(file);
+    const imageUri = `ipfs://${uploadImage.cid}`;
 
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
+
     const metadata = {
       name: name,
-      description: GLOBAL_DESCRIPTION,
+      description:
+        "GEN-0 Genesis | A singular, unreplicable digital artifact — timeless, unparalleled, and supremely rare. Ownership verified and sealed through NNM.",
       image: imageUri,
-      external_url: "https://nftnamemarket.com",
       attributes: [
         { trait_type: "Generation", value: "GEN-0 Genesis" },
         { trait_type: "Tier", value: formattedTier },
-        { trait_type: "Registration Year", value: "2025" },
+        { trait_type: "Year", value: "2025" },
+        { trait_type: "Platform", value: "NNM Market" },
       ],
     };
 
-    const jsonUploadRes = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.PINATA_JWT}`,
-      },
-      body: JSON.stringify({
-        pinataContent: metadata,
-        pinataMetadata: { name: `${safeFileName}-metadata.json` },
-      }),
-    });
-
-    if (!jsonUploadRes.ok) throw new Error("Pinata JSON Upload Failed");
-    const jsonResult = await jsonUploadRes.json();
+    const uploadJson = await pinata.upload.public.json(metadata);
+    const tokenUri = `ipfs://${uploadJson.cid}`;
 
     return NextResponse.json({
       success: true,
-      tokenURI: `ipfs://${jsonResult.IpfsHash}`,
+      tokenURI: tokenUri,
       imageIpfs: imageUri,
     });
   } catch (error: any) {
