@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { ImageResponse } from "@vercel/og";
-import fs from "fs";
-import path from "path";
 
-// 🛑 تغيير جذري: نستخدم Node.js لأنه الوحيد القادر على قراءة الملفات المحلية بثبات
-export const runtime = "nodejs";
+// ✅ نعود لاستخدام Edge لأنه الأفضل مع Fetch والأسرع في معالجة الصور
+export const runtime = "edge";
 
 const GLOBAL_DESCRIPTION = `GEN-0 Genesis — NNM Protocol Record
 A singular, unreplicable digital artifact.
-Ownership is absolute, cryptographically secured, and fully transferable.
-This record establishes the earliest verifiable origin of the name as recognized by the NNM protocol.`;
+Ownership is absolute, cryptographically secured, and fully transferable.`;
 
 export async function POST(req: Request) {
   try {
@@ -18,24 +15,38 @@ export async function POST(req: Request) {
     if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
     // =========================================================================
-    // 1. 🔤 تحميل الخط المحلي (نظام الملفات القوي)
+    // 1. 🔤 تحميل الخط من رابط الموقع الداخلي (Internal Fetch)
     // =========================================================================
-    let fontData;
-    try {
-      // تحديد مسار الملف بدقة داخل بيئة السيرفر
-      // يبحث في: packages/nextjs/public/fonts/Cinzel-Bold.ttf
-      const fontPath = path.join(process.cwd(), "public", "fonts", "Cinzel-Bold.ttf");
+    let fontData: ArrayBuffer | null = null;
 
-      // قراءة الملف
-      fontData = fs.readFileSync(fontPath);
-      console.log("✅ Font loaded successfully from:", fontPath);
+    try {
+      // نحدد رابط الموقع الحالي ديناميكياً
+      const { protocol, host } = new URL(req.url);
+      const baseUrl = `${protocol}//${host}`;
+
+      // نطلب الخط من مجلد Public مباشرة
+      const fontUrl = `${baseUrl}/fonts/Cinzel-Bold.ttf`;
+      console.log("🔄 Fetching font from:", fontUrl);
+
+      const fontResponse = await fetch(fontUrl);
+
+      if (fontResponse.ok) {
+        fontData = await fontResponse.arrayBuffer();
+        console.log("✅ Font loaded successfully");
+      } else {
+        console.error("⚠️ Font fetch failed:", fontResponse.status);
+      }
     } catch (e) {
-      console.error("⚠️ Failed to load local font, using fallback system font:", e);
-      // في حالة فشل قراءة الملف، لا نكسر الصورة، بل نكمل بدونه (احتياطي)
-      fontData = null;
+      console.error("⚠️ Font loading error:", e);
+      // لن نوقف العملية، سنكمل بالخط الاحتياطي
     }
 
-    // 2. 🎨 تحديد الألوان
+    // 2. 🎨 إعداد الخطوط (إذا فشل تحميل Cinzel نستخدم خط النظام لكي لا تنكسر الصورة)
+    const fontsConfig = fontData
+      ? [{ name: "Cinzel", data: fontData, style: "normal" as const, weight: 700 as const }]
+      : undefined; // سيستخدم sans-serif الافتراضي تلقائياً
+
+    // 3. 🎨 تحديد الألوان
     const t = tier?.toLowerCase() || "founder";
     let bgGradient = "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)";
     let borderColor = "#FCD535";
@@ -43,20 +54,15 @@ export async function POST(req: Request) {
 
     if (t === "immortal") {
       bgGradient = "linear-gradient(135deg, #000000 0%, #1a1a1a 100%)";
-      borderColor = "#E5E4E2"; // Platinum
+      borderColor = "#E5E4E2";
       textColor = "#E5E4E2";
     } else if (t === "elite") {
       bgGradient = "linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%)";
-      borderColor = "#FCA5A5"; // Rose Gold
+      borderColor = "#FCA5A5";
       textColor = "#FCA5A5";
     }
 
-    // إعدادات الخط (نستخدم Cinzel إذا وجد، وإلا sans-serif)
-    const fontsConfig = fontData
-      ? [{ name: "Cinzel", data: fontData, style: "normal" as const, weight: 700 as const }]
-      : undefined; // سيستخدم الخط الافتراضي للنظام إذا فشل التحميل
-
-    // 3. 📸 تصميم الكرت
+    // 4. 📸 تصميم الكرت
     const element = (
       <div
         style={{
@@ -67,7 +73,7 @@ export async function POST(req: Request) {
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "black",
-          fontFamily: fontData ? '"Cinzel"' : "sans-serif", // الخط المختار
+          fontFamily: fontData ? '"Cinzel"' : "sans-serif", // استخدام الخط المتاح
         }}
       >
         <div
@@ -192,7 +198,11 @@ export async function POST(req: Request) {
     const blob = new Blob([imageArrayBuffer], { type: "image/png" });
     const safeFileName = name.replace(/[^a-zA-Z0-9]/g, "_");
 
-    if (!process.env.PINATA_JWT) throw new Error("Missing PINATA_JWT");
+    // تحقق من متغيرات البيئة قبل الرفع
+    if (!process.env.PINATA_JWT) {
+      console.error("Missing PINATA_JWT");
+      throw new Error("Server Config: Missing Pinata Token");
+    }
 
     const formData = new FormData();
     formData.append("file", blob, `${safeFileName}.png`);
@@ -205,7 +215,12 @@ export async function POST(req: Request) {
       body: formData,
     });
 
-    if (!imageUploadRes.ok) throw new Error("Pinata Image Upload Failed");
+    if (!imageUploadRes.ok) {
+      const errText = await imageUploadRes.text();
+      console.error("Pinata Upload Error:", errText);
+      throw new Error("Failed to upload image to IPFS");
+    }
+
     const imageResult = await imageUploadRes.json();
     const imageUri = `ipfs://${imageResult.IpfsHash}`;
 
