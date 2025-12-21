@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { ImageResponse } from "@vercel/og";
+import fs from "fs";
+import path from "path";
 
-// ✅ استخدام Edge Runtime (الأسرع والأمثل للصور)
-export const runtime = "edge";
+// 🛑 تغيير جذري: نستخدم Node.js لأنه الوحيد القادر على قراءة الملفات المحلية بثبات
+export const runtime = "nodejs";
 
 const GLOBAL_DESCRIPTION = `GEN-0 Genesis — NNM Protocol Record
 A singular, unreplicable digital artifact.
@@ -11,35 +13,50 @@ This record establishes the earliest verifiable origin of the name as recognized
 
 export async function POST(req: Request) {
   try {
-    const { name, tier, mode } = await req.json(); // mode: 'preview' or 'mint'
+    const { name, tier, mode } = await req.json();
 
     if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
     // =========================================================================
-    // 1. 🔤 تحميل الخط المحلي (Cinzel) من مجلدات المشروع
-    // لا نحتاج للإنترنت، الملف موجود بجانب الكود
+    // 1. 🔤 تحميل الخط المحلي (نظام الملفات القوي)
     // =========================================================================
-    const fontData = await fetch(new URL("../../../public/fonts/Cinzel-Bold.ttf", import.meta.url)).then(res =>
-      res.arrayBuffer(),
-    );
+    let fontData;
+    try {
+      // تحديد مسار الملف بدقة داخل بيئة السيرفر
+      // يبحث في: packages/nextjs/public/fonts/Cinzel-Bold.ttf
+      const fontPath = path.join(process.cwd(), "public", "fonts", "Cinzel-Bold.ttf");
 
-    // 2. 🎨 تحديد الألوان (نظام الفخامة)
+      // قراءة الملف
+      fontData = fs.readFileSync(fontPath);
+      console.log("✅ Font loaded successfully from:", fontPath);
+    } catch (e) {
+      console.error("⚠️ Failed to load local font, using fallback system font:", e);
+      // في حالة فشل قراءة الملف، لا نكسر الصورة، بل نكمل بدونه (احتياطي)
+      fontData = null;
+    }
+
+    // 2. 🎨 تحديد الألوان
     const t = tier?.toLowerCase() || "founder";
-    let bgGradient = "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)"; // كحلي ملكي
-    let borderColor = "#FCD535"; // ذهبي
-    let textColor = "#FCD535"; // ذهبي
+    let bgGradient = "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)";
+    let borderColor = "#FCD535";
+    let textColor = "#FCD535";
 
     if (t === "immortal") {
-      bgGradient = "linear-gradient(135deg, #000000 0%, #1a1a1a 100%)"; // أسود فاحم
-      borderColor = "#E5E4E2"; // بلاتينيوم
+      bgGradient = "linear-gradient(135deg, #000000 0%, #1a1a1a 100%)";
+      borderColor = "#E5E4E2"; // Platinum
       textColor = "#E5E4E2";
     } else if (t === "elite") {
-      bgGradient = "linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%)"; // أحمر ملكي
-      borderColor = "#FCA5A5"; // ذهبي وردي
+      bgGradient = "linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%)";
+      borderColor = "#FCA5A5"; // Rose Gold
       textColor = "#FCA5A5";
     }
 
-    // 3. 📸 تصميم الكرت (JSX) - مجهز للتصوير
+    // إعدادات الخط (نستخدم Cinzel إذا وجد، وإلا sans-serif)
+    const fontsConfig = fontData
+      ? [{ name: "Cinzel", data: fontData, style: "normal" as const, weight: 700 as const }]
+      : undefined; // سيستخدم الخط الافتراضي للنظام إذا فشل التحميل
+
+    // 3. 📸 تصميم الكرت
     const element = (
       <div
         style={{
@@ -50,7 +67,7 @@ export async function POST(req: Request) {
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "black",
-          fontFamily: '"Cinzel"', // الخط الفخم
+          fontFamily: fontData ? '"Cinzel"' : "sans-serif", // الخط المختار
         }}
       >
         <div
@@ -64,7 +81,7 @@ export async function POST(req: Request) {
             background: bgGradient,
           }}
         >
-          {/* الإطار الخارجي */}
+          {/* الإطار */}
           <div
             style={{
               display: "flex",
@@ -74,11 +91,11 @@ export async function POST(req: Request) {
               width: "720px",
               height: "720px",
               border: `8px solid ${borderColor}`,
-              boxShadow: `0 0 50px ${borderColor}40`, // ظل خفيف بلون الإطار
+              boxShadow: `0 0 50px ${borderColor}40`,
               position: "relative",
             }}
           >
-            {/* زخرفة الزوايا */}
+            {/* الزوايا */}
             <div
               style={{
                 position: "absolute",
@@ -124,18 +141,16 @@ export async function POST(req: Request) {
               }}
             />
 
-            {/* العنوان العلوي */}
             <div style={{ color: borderColor, fontSize: 36, letterSpacing: "0.1em", fontWeight: 700, marginTop: 40 }}>
               GEN-0 GENESIS
             </div>
 
             <div style={{ width: "200px", height: "2px", background: borderColor, margin: "30px 0", opacity: 0.6 }} />
 
-            {/* الاسم (البطل) */}
             <div
               style={{
                 color: textColor,
-                fontSize: 85, // خط كبير وواضح
+                fontSize: 85,
                 fontWeight: 700,
                 textAlign: "center",
                 textTransform: "uppercase",
@@ -149,29 +164,21 @@ export async function POST(req: Request) {
 
             <div style={{ width: "200px", height: "2px", background: borderColor, margin: "30px 0", opacity: 0.6 }} />
 
-            {/* النصوص السفلية */}
             <div style={{ color: "#ffffff", fontSize: 24, letterSpacing: "0.2em", opacity: 0.8 }}>OWNED & MINTED</div>
             <div style={{ color: borderColor, fontSize: 40, fontWeight: 700, marginTop: 15 }}>2025</div>
-
-            {/* الشعار السفلي الصغير */}
-            <div style={{ position: "absolute", bottom: 30, fontSize: 16, color: borderColor, opacity: 0.5 }}>
-              NNM PROTOCOL
-            </div>
           </div>
         </div>
       </div>
     );
 
-    // إعدادات الصورة
     const imageOptions = {
       width: 800,
       height: 800,
-      fonts: [{ name: "Cinzel", data: fontData, style: "normal" as const, weight: 700 as const }],
+      fonts: fontsConfig,
     };
 
     // =========================================================================
     // 🚦 وضع المعاينة (Preview Mode)
-    // إذا كان الطلب للمعاينة، نعيد الصورة فوراً للمتصفح ولا نرفعها
     // =========================================================================
     if (mode === "preview") {
       return new ImageResponse(element, imageOptions);
@@ -179,16 +186,12 @@ export async function POST(req: Request) {
 
     // =========================================================================
     // 🚀 وضع الصك (Mint Mode)
-    // إذا كان الطلب للصك، نكمل عملية الرفع لـ Pinata
     // =========================================================================
-
-    // 1. توليد الصورة كملف
     const imageResponse = new ImageResponse(element, imageOptions);
     const imageArrayBuffer = await imageResponse.arrayBuffer();
     const blob = new Blob([imageArrayBuffer], { type: "image/png" });
     const safeFileName = name.replace(/[^a-zA-Z0-9]/g, "_");
 
-    // 2. الرفع إلى Pinata
     if (!process.env.PINATA_JWT) throw new Error("Missing PINATA_JWT");
 
     const formData = new FormData();
@@ -206,7 +209,6 @@ export async function POST(req: Request) {
     const imageResult = await imageUploadRes.json();
     const imageUri = `ipfs://${imageResult.IpfsHash}`;
 
-    // 3. رفع الميتا داتا
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
     const metadata = {
       name: name,
