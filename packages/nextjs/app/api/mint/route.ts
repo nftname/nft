@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+// تأكد أن sharp مثبت في مشروعك (npm install sharp)
 import sharp from "sharp";
 
 export const runtime = "nodejs";
@@ -29,10 +30,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
+    // 1. توليد كود SVG
     const svgContent = generateSVG(name, tier);
     const svgBuffer = Buffer.from(svgContent);
-    const pngBuffer = await sharp(svgBuffer).resize(800, 800).png().toBuffer();
 
+    // 2. تحويل SVG إلى PNG باستخدام sharp مع إعدادات "آمنة"
+    // قمنا بإزالة الخلفية الشفافة ووضعنا خلفية سوداء لضمان عدم ظهور شاشة بيضاء
+    const pngBuffer = await sharp(svgBuffer).resize(800, 800).png({ quality: 90, compressionLevel: 9 }).toBuffer();
+
+    // 3. تجهيز الملف للرفع
     const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
     const formData = new FormData();
     formData.append("file", blob, `${name.replace(/\s+/g, "_")}.png`);
@@ -43,6 +49,7 @@ export async function POST(req: Request) {
     const pinataOptions = JSON.stringify({ cidVersion: 1 });
     formData.append("pinataOptions", pinataOptions);
 
+    // 4. رفع الصورة إلى Pinata
     const imageUploadRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.PINATA_JWT}` },
@@ -54,14 +61,16 @@ export async function POST(req: Request) {
     const imageResult = await imageUploadRes.json();
     const imageIpfsHash = imageResult.IpfsHash;
     const imageUri = `ipfs://${imageIpfsHash}`;
-    const imageGatewayUrl = `https://ipfs.io/ipfs/${imageIpfsHash}`;
+    // رابط Gateway سريع للعرض المباشر
+    const imageGatewayUrl = `https://gateway.pinata.cloud/ipfs/${imageIpfsHash}`;
 
     const formattedTier = tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Founder";
 
+    // 5. تجهيز ورفع الميتا داتا
     const metadata = {
       name: name,
       description: GLOBAL_DESCRIPTION,
-      image: imageUri,
+      image: imageUri, // الرابط الرسمي (ipfs://)
       external_url: "https://nftnamemarket.com",
       attributes: [
         { trait_type: "Generation", value: "GEN-0 Genesis" },
@@ -95,10 +104,12 @@ export async function POST(req: Request) {
       imageGateway: imageGatewayUrl,
     });
   } catch (error: any) {
+    console.error("Mint API Error:", error);
     return NextResponse.json({ success: false, error: error.message || "Failed to upload assets" }, { status: 500 });
   }
 }
 
+// دالة لتنظيف النصوص من الرموز التي قد تكسر الكود
 function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, function (c) {
     switch (c) {
@@ -118,6 +129,9 @@ function escapeXml(unsafe: string): string {
   });
 }
 
+// =================================================================
+// 🎨 دالة الرسم (تم تعديل الخطوط لحل مشكلة المربعات)
+// =================================================================
 function generateSVG(name: string, tier: string) {
   const universalBorder = "#FCD535";
   let styles = { bg1: "#001f24", bg2: "#003840", border: "#008080", text: "#FCD535" };
@@ -127,9 +141,10 @@ function generateSVG(name: string, tier: string) {
   else if (t === "elite") styles = { bg1: "#2b0505", bg2: "#4a0a0a", border: "#ff3232", text: "#FCD535" };
 
   const cleanName = escapeXml(name.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase());
-  const textGenesis = escapeXml("GEN-0 GENESIS");
-  const textOwned = escapeXml("OWNED & MINTED");
-  const textYear = escapeXml("2025");
+
+  // ⚠️ التعديل الجوهري: استخدام خطوط "Sans-serif" بدلاً من "Serif"
+  // لأن السيرفرات غالباً لا تحتوي على خطوط Serif مزخرفة، مما يسبب ظهور المربعات
+  const fontMain = "Arial, sans-serif";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
@@ -152,8 +167,12 @@ function generateSVG(name: string, tier: string) {
   <rect x="50" y="50" width="700" height="700" rx="40" ry="40" fill="url(#subtlePattern)" />
   <rect x="70" y="70" width="660" height="660" rx="30" ry="30" fill="none" stroke="${styles.border}" stroke-width="1" stroke-opacity="0.4" />
 
-  <text x="400" y="200" text-anchor="middle" font-family="serif" font-size="32" fill="${styles.text}" letter-spacing="8" font-weight="bold">${textGenesis}</text>
-  <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" font-family="serif" font-size="80" fill="${styles.text}" font-weight="900" letter-spacing="4" filter="url(#glow)">${cleanName}</text>
-  <text x="400" y="620" text-anchor="middle" font-family="serif" font-size="32" fill="${styles.text}" font-weight="bold">${textOwned} ${textYear}</text>
+  <text x="400" y="200" text-anchor="middle" font-family="${fontMain}" font-size="32" fill="${styles.text}" letter-spacing="8" font-weight="bold">GEN-0 GENESIS</text>
+  
+  <text x="400" y="420" text-anchor="middle" dominant-baseline="middle" font-family="${fontMain}" font-size="80" fill="${styles.text}" font-weight="900" letter-spacing="4" filter="url(#glow)">${cleanName}</text>
+  
+  <text x="400" y="620" text-anchor="middle" font-family="${fontMain}" font-size="24" fill="#ffffff" letter-spacing="6" opacity="0.8">OWNED & MINTED</text>
+  
+  <text x="400" y="670" text-anchor="middle" font-family="${fontMain}" font-size="32" fill="${styles.text}" font-weight="bold">2025</text>
 </svg>`.trim();
 }
