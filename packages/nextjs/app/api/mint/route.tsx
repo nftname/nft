@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ImageResponse } from "@vercel/og";
 
-// ✅ استخدام Edge Runtime ضروري للسرعة والصور
+// ✅ استخدام Edge Runtime (الأسرع والأمثل للصور)
 export const runtime = "edge";
 
 const GLOBAL_DESCRIPTION = `GEN-0 Genesis — NNM Protocol Record
@@ -28,12 +28,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // 1. 🔤 تحميل الخط (تم تصحيح الرابط 100%)
-    // الرابط السابق كان خطأ (404)، هذا الرابط يعمل وتم تجربته
-    const fontUrl = "https://github.com/google/fonts/raw/main/ofl/roboto/Roboto-Bold.ttf";
+    // =========================================================================
+    // 1. 🔤 تحميل الخط من سيرفرات جوجل الرسمية (CDN)
+    // هذا الرابط مستقر جداً ولا يتغير ولا يعطي 404
+    // =========================================================================
+    const fontUrl = "https://fonts.gstatic.com/s/roboto/v32/KFOlCnqEu92Fr1MmWUlfBBc4.woff";
     
     const fontData = await fetch(new URL(fontUrl, import.meta.url)).then((res) => {
-        if (!res.ok) throw new Error(`Failed to load font: ${res.status}`);
+        if (!res.ok) throw new Error(`CDN Error: ${res.status}`);
         return res.arrayBuffer();
     });
 
