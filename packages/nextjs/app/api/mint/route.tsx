@@ -15,38 +15,14 @@ export async function POST(req: Request) {
     if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
     // =========================================================================
-    // 1. 🔤 تحميل الخط من رابط الموقع الداخلي (Internal Fetch)
+    // 1. 🔤 تحميل الخط المحلي باستخدام import.meta.url
+    // ✅ هذه الطريقة تعمل بشكل مثالي في Edge Runtime
     // =========================================================================
-    let fontData: ArrayBuffer | null = null;
+    const fontData = await fetch(new URL("../../../public/fonts/Cinzel-Bold.ttf", import.meta.url)).then(res =>
+      res.arrayBuffer(),
+    );
 
-    try {
-      // نحدد رابط الموقع الحالي ديناميكياً
-      const { protocol, host } = new URL(req.url);
-      const baseUrl = `${protocol}//${host}`;
-
-      // نطلب الخط من مجلد Public مباشرة
-      const fontUrl = `${baseUrl}/fonts/Cinzel-Bold.ttf`;
-      console.log("🔄 Fetching font from:", fontUrl);
-
-      const fontResponse = await fetch(fontUrl);
-
-      if (fontResponse.ok) {
-        fontData = await fontResponse.arrayBuffer();
-        console.log("✅ Font loaded successfully");
-      } else {
-        console.error("⚠️ Font fetch failed:", fontResponse.status);
-      }
-    } catch (e) {
-      console.error("⚠️ Font loading error:", e);
-      // لن نوقف العملية، سنكمل بالخط الاحتياطي
-    }
-
-    // 2. 🎨 إعداد الخطوط (إذا فشل تحميل Cinzel نستخدم خط النظام لكي لا تنكسر الصورة)
-    const fontsConfig = fontData
-      ? [{ name: "Cinzel", data: fontData, style: "normal" as const, weight: 700 as const }]
-      : undefined; // سيستخدم sans-serif الافتراضي تلقائياً
-
-    // 3. 🎨 تحديد الألوان
+    // 2. 🎨 تحديد الألوان
     const t = tier?.toLowerCase() || "founder";
     let bgGradient = "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)";
     let borderColor = "#FCD535";
@@ -180,7 +156,14 @@ export async function POST(req: Request) {
     const imageOptions = {
       width: 800,
       height: 800,
-      fonts: fontsConfig,
+      fonts: [
+        {
+          name: "Cinzel",
+          data: fontData,
+          style: "normal" as const,
+          weight: 700 as const,
+        },
+      ],
     };
 
     // =========================================================================
