@@ -13,53 +13,79 @@
     dark --prefersdark;
 }
 
+/* --- الوضع النهاري (World Class Standard) --- */
 @plugin "daisyui/theme" {
   name: "light";
 
+  /* الذهبي للأزرار والأيقونات فقط */
   --color-primary: #FCD535;
-  --color-primary-content: #0b0e11;
-  --color-secondary: #0b0e11;
-  --color-secondary-content: #ffffff;
-  --color-accent: #FCD535;
-  --color-accent-content: #0b0e11;
-  --color-neutral: #0b0e11;
+  --color-primary-content: #0b0e11; /* النص داخل الزر الذهبي أسود */
+
+  /* السماوي الفاتح كلون ثانوي (للديكورات الخلفية الخفيفة) */
+  --color-secondary: #e0f2fe; 
+  --color-secondary-content: #0f172a;
+
+  /* لون العناوين والتمييز في الفاتح (كحلي) */
+  --color-accent: #0f172a;
+  --color-accent-content: #ffffff;
+
+  /* الألوان المحايدة */
+  --color-neutral: #0f172a;
   --color-neutral-content: #ffffff;
-  --color-base-100: #ffffff;
-  --color-base-200: #f4f8ff;
-  --color-base-300: #dae8ff;
-  --color-base-content: #0b0e11;
-  --color-info: #93bbfb;
-  --color-success: #34eeb6;
-  --color-warning: #ffcf72;
-  --color-error: #ff8863;
+
+  /* الخلفية أبيض مكسور مريح للعين */
+  --color-base-100: #f8fafc; 
+  --color-base-200: #f1f5f9; 
+  --color-base-300: #e2e8f0; 
+  
+  /* النصوص الأساسية: كحلي غامق جداً (للقراءة الممتازة) */
+  --color-base-content: #0f172a;
+
+  --color-info: #38bdf8;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
 
   --radius-field: 9999rem;
   --radius-box: 1rem;
   --tt-tailw: 6px;
 }
 
+/* --- الوضع الليلي (Dark Mode Identity) --- */
 @plugin "daisyui/theme" {
   name: "dark";
 
+  /* الذهبي للأزرار والأيقونات فقط */
   --color-primary: #FCD535;
-  --color-primary-content: #0b0e11;
-  --color-secondary: #323f61;
-  --color-secondary-content: #f9fbff;
+  --color-primary-content: #0b0e11; /* النص داخل الزر الذهبي أسود */
+
+  /* الكحلي كخلفية ثانوية */
+  --color-secondary: #1e293b;
+  --color-secondary-content: #f8fafc;
+
+  /* التمييز بالذهبي أيضاً في الدارك */
   --color-accent: #FCD535;
   --color-accent-content: #0b0e11;
-  --color-neutral: #f9fbff;
-  --color-neutral-content: #385183;
-  --color-base-100: #0b0e11;
-  --color-base-200: #151a21;
-  --color-base-300: #2a3655;
+
+  --color-neutral: #f8fafc;
+  --color-neutral-content: #0f172a;
+  
+  /* خلفية الموقع الخاصة بك (Deep Blue/Black) */
+  --color-base-100: #0b0e11; 
+  --color-base-200: #11151c; 
+  --color-base-300: #1a202c; 
+  
+  /* النصوص أبيض ناصع للقراءة */
   --color-base-content: #ffffff;
-  --color-info: #385183;
-  --color-success: #34eeb6;
-  --color-warning: #ffcf72;
-  --color-error: #ff8863;
+
+  --color-info: #38bdf8;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
 
   --radius-field: 9999rem;
   --radius-box: 1rem;
+
   --tt-tailw: 6px;
   --tt-bg: var(--color-primary);
 }
@@ -118,7 +144,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0b0e11; 
+  background: var(--color-base-100); 
 }
 
 ::-webkit-scrollbar-thumb {
@@ -131,7 +157,8 @@
 }
 
 .footer-link-item {
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: var(--color-base-content) !important;
+  opacity: 0.6;
   transition: all 0.2s ease-in-out !important;
   text-decoration: none !important;
   display: inline-block;
@@ -139,17 +166,20 @@
 
 .footer-link-item:hover {
   color: #FCD535 !important;
+  opacity: 1;
   transform: translateX(3px);
 }
 
 .footer-social-icon {
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: var(--color-base-content) !important;
+  opacity: 0.6;
   transition: all 0.2s ease-in-out !important;
   display: inline-block;
 }
 
 .footer-social-icon:hover {
   color: #FCD535 !important;
+  opacity: 1;
   transform: scale(1.1);
 }
 
@@ -157,16 +187,18 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--color-base-content);
+  opacity: 0.6;
   text-decoration: none;
   font-size: 13px;
   transition: all 0.2s ease;
 }
 
 .footer-social-row:hover {
-  color: #fff;
+  color: var(--color-base-content);
+  opacity: 1;
   padding-left: 5px;
 }
 
 .footer-social-row i { color: #FCD535; } 
-.footer-social-row:hover i { color: #fff; }
+.footer-social-row:hover i { color: var(--color-base-content); }
