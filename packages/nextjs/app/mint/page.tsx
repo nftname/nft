@@ -16,27 +16,29 @@ export default function MintPage() {
 
   const ADMIN_WALLET = "0xf65bf669ee7775c9788ed367742e1527d0118b58";
 
-  const { refetch: checkNameRegistered } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const REGISTRY = "NNMRegistryV99";
+
+  const { refetch: checkNameRegistered } = (useScaffoldReadContract as any)({
+    contractName: REGISTRY,
     functionName: "registeredNames",
     args: [name ? keccak256(toHex(name)) : undefined],
   });
 
-  const { writeContractAsync: mintPublic } = useScaffoldWriteContract("NNMRegistryV99");
-  const { writeContractAsync: reserveName } = useScaffoldWriteContract("NNMRegistryV99");
+  const { writeContractAsync: mintPublic } = (useScaffoldWriteContract as any)(REGISTRY);
+  const { writeContractAsync: reserveName } = (useScaffoldWriteContract as any)(REGISTRY);
 
-  const { data: founderCost } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: founderCost } = (useScaffoldReadContract as any)({
+    contractName: REGISTRY,
     functionName: "getMaticCost",
     args: [parseEther("10")],
   });
-  const { data: eliteCost } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: eliteCost } = (useScaffoldReadContract as any)({
+    contractName: REGISTRY,
     functionName: "getMaticCost",
     args: [parseEther("30")],
   });
-  const { data: immortalCost } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: immortalCost } = (useScaffoldReadContract as any)({
+    contractName: REGISTRY,
     functionName: "getMaticCost",
     args: [parseEther("50")],
   });
@@ -87,7 +89,7 @@ export default function MintPage() {
           args: [name, tierIndex, tokenURI],
         });
       } else {
-        const valueToSend = costWei ? (costWei * 105n) / 100n : 0n;
+        const valueToSend = ((costWei ?? 0n) * 105n) / 100n;
         await mintPublic({
           functionName: "mintPublic",
           args: [name, tierIndex, tokenURI],
@@ -137,7 +139,7 @@ export default function MintPage() {
           {isAvailable && (
             <div className="grid grid-cols-1 gap-3 animate-fade-in">
               <button
-                onClick={() => handleMint("immortal", 0, immortalCost)}
+                onClick={() => handleMint("immortal", 0, immortalCost as bigint | undefined)}
                 disabled={isLoading}
                 className="btn h-auto py-3 btn-outline border-purple-500 hover:bg-purple-500 hover:text-white"
               >
@@ -148,7 +150,7 @@ export default function MintPage() {
               </button>
 
               <button
-                onClick={() => handleMint("elite", 1, eliteCost)}
+                onClick={() => handleMint("elite", 1, eliteCost as bigint | undefined)}
                 disabled={isLoading}
                 className="btn h-auto py-3 btn-outline border-red-500 hover:bg-red-500 hover:text-white"
               >
@@ -159,7 +161,7 @@ export default function MintPage() {
               </button>
 
               <button
-                onClick={() => handleMint("founder", 2, founderCost)}
+                onClick={() => handleMint("founder", 2, founderCost as bigint | undefined)}
                 disabled={isLoading}
                 className="btn h-auto py-3 btn-outline border-green-500 hover:bg-green-500 hover:text-white"
               >

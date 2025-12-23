@@ -6,6 +6,8 @@ import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
 import { resolveTier } from "~~/utils/tierHelper";
 
 const GOLD_GRADIENT = "linear-gradient(180deg, #FFD700 0%, #B3882A 100%)";
+const REGISTRY = "NNMRegistryV99";
+const readContract: any = useScaffoldReadContract as any;
 
 // --- مكون فرعي للصف (لجلب البيانات لكل كرت على حدة) ---
 const MarketRow = ({
@@ -17,16 +19,16 @@ const MarketRow = ({
   watchlist: number[];
   toggleWatchlist: (id: number) => void;
 }) => {
-  const { data: record } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: record } = readContract({
+    contractName: REGISTRY,
     functionName: "nameRecords",
     args: [tokenId],
   });
 
   if (!record) return null; // لا تعرض شيئاً حتى تكتمل البيانات
 
-  const name = record[0];
-  const tier = resolveTier(record[1]);
+  const name = (record as any)[0] as string;
+  const tier = resolveTier(Number((record as any)[1] ?? 0));
   const id = Number(tokenId);
 
   // تصميم الأيقونة حسب الفئة
@@ -99,8 +101,8 @@ export default function MarketPage() {
   const [watchlist, setWatchlist] = useState<number[]>([]);
 
   // 1. قراءة العدد الكلي للكروت
-  const { data: totalSupply } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: totalSupply } = readContract({
+    contractName: REGISTRY,
     functionName: "totalSupply",
   });
 

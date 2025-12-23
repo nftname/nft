@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
 
+const REGISTRY = "NNMRegistryV99";
+const readContract: any = useScaffoldReadContract as any;
+
 // --- Visual Constants (Keep as is) ---
 const RICH_GOLD_GRADIENT_CSS =
   "linear-gradient(to bottom, #FFD700 0%, #E6BE03 25%, #B3882A 50%, #E6BE03 75%, #FFD700 100%)";
@@ -51,31 +54,31 @@ export default function AssetPage() {
   const tokenId = params?.id ? BigInt(Array.isArray(params.id) ? params.id[0] : params.id) : undefined;
 
   // --- Read real data from contract ---
-  const { data: record, isLoading } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: record, isLoading } = readContract({
+    contractName: REGISTRY,
     functionName: "nameRecords",
-    args: [tokenId] as readonly [bigint | undefined],
+    args: [tokenId],
   });
 
   // Read owner of the token
-  const { data: owner } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: owner } = readContract({
+    contractName: REGISTRY,
     functionName: "ownerOf",
-    args: [tokenId] as readonly [bigint | undefined],
+    args: [tokenId],
   });
 
   // Read token URI
-  const { data: tokenURI } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: tokenURI } = readContract({
+    contractName: REGISTRY,
     functionName: "tokenURI",
-    args: [tokenId] as readonly [bigint | undefined],
+    args: [tokenId],
   });
 
   // Extract data from response
   // Contract returns: [name, tier, mintTime]
-  const assetName = record ? (record[0] as string) : null;
-  const tierIndex = record ? Number(record[1]) : 2; // Default Founder
-  const mintTime = record ? Number(record[2]) : 0;
+  const assetName = record ? ((record as any)[0] as string) : null;
+  const tierIndex = record ? Number((record as any)[1] ?? 2) : 2; // Default Founder
+  const mintTime = record ? Number((record as any)[2] ?? 0) : 0;
 
   if (isLoading)
     return (

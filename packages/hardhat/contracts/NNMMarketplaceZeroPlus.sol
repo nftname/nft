@@ -60,7 +60,7 @@ contract NNMMarketplaceZeroPlus is ReentrancyGuard, Ownable {
 
     event PlatformFeeUpdated(uint256 newFee);
 
-    constructor(address _nftAddress, address _wpolAddress) Ownable() {
+    constructor(address _nftAddress, address _wpolAddress) Ownable(msg.sender) {
         nftContract = IERC721(_nftAddress);
         wpolContract = IERC20(_wpolAddress);
     }

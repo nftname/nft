@@ -125,16 +125,16 @@ export const useScaffoldEventHistory = <
 
   const isContractAddressAndClientReady = Boolean(deployedContractData?.address) && Boolean(publicClient);
 
+  const deployedOnBlock = (deployedContractData as any)?.deployedOnBlock ?? 0;
+
   const fromBlockValue =
     fromBlock !== undefined
       ? fromBlock
       : BigInt(
-          deployedContractData && "deployedOnBlock" in deployedContractData
-            ? typeof deployedContractData.deployedOnBlock === "number" ||
-              typeof deployedContractData.deployedOnBlock === "bigint" ||
-              typeof deployedContractData.deployedOnBlock === "string"
-              ? deployedContractData.deployedOnBlock
-              : 0
+          typeof deployedOnBlock === "number" ||
+            typeof deployedOnBlock === "bigint" ||
+            typeof deployedOnBlock === "string"
+            ? deployedOnBlock
             : 0,
         );
 

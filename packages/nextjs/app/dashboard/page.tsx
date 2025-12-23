@@ -7,27 +7,29 @@ import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
 import { getTierColorStyle, resolveTier } from "~~/utils/tierHelper";
 
 const GOLD_GRADIENT = "linear-gradient(135deg, #FFF5CC 0%, #FCD535 40%, #B3882A 100%)";
+const REGISTRY = "NNMRegistryV99";
+const readContract: any = useScaffoldReadContract as any;
 
 // --- مكون البطاقة (يجلب بياناته بنفسه) ---
 const DashboardAssetCard = ({ address, index }: { address: string; index: number }) => {
   // 1. الحصول على الـ Token ID
-  const { data: tokenId } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: tokenId } = readContract({
+    contractName: REGISTRY,
     functionName: "tokenOfOwnerByIndex",
     args: [address, BigInt(index)],
   });
 
   // 2. الحصول على تفاصيل الاسم
-  const { data: record } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: record } = readContract({
+    contractName: REGISTRY,
     functionName: "nameRecords",
     args: [tokenId],
   });
 
   if (!tokenId || !record) return <div className="animate-pulse bg-gray-800 rounded-xl h-64 w-full"></div>;
 
-  const name = record[0];
-  const tier = resolveTier(record[1]);
+  const name = (record as any)[0] as string;
+  const tier = resolveTier(Number((record as any)[1] ?? 0));
   const style = getTierColorStyle(tier);
 
   return (
@@ -79,7 +81,7 @@ const DashboardAssetCard = ({ address, index }: { address: string; index: number
               ID
             </div>
             <div className="text-white fw-bold" style={{ fontSize: "12px" }}>
-              #{tokenId.toString()}
+              #{(tokenId as bigint).toString()}
             </div>
           </div>
         </div>
@@ -100,8 +102,8 @@ export default function DashboardPage() {
   const { address, isConnected } = useAccount();
   const [activeTab, setActiveTab] = useState("ALL");
 
-  const { data: balance } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
+  const { data: balance } = readContract({
+    contractName: REGISTRY,
     functionName: "balanceOf",
     args: [address],
   });
