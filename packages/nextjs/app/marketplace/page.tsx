@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { formatEther } from "viem";
 import { useNNMAllAssets, useNNMAssetData, useScaffoldReadContract } from "~~/hooks/scaffold-eth";
@@ -237,7 +237,7 @@ export default function MarketPage() {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
   // Use The Warehouse to fetch all assets
-  const { tokenIds: allTokenIds, totalCount } = useNNMAllAssets();
+  const { tokenIds: allTokenIds } = useNNMAllAssets();
 
   const totalPages = Math.ceil(allTokenIds.length / ITEMS_PER_PAGE);
   const currentTokenIds = allTokenIds.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
