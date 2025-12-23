@@ -3,7 +3,6 @@ export * from "./useCopyToClipboard";
 export * from "./useDeployedContractInfo";
 export * from "./useFetchBlocks";
 export * from "./useNetworkColor";
-export * from "./useNNMAssetData";
 export * from "./useOutsideClick";
 export * from "./useScaffoldContract";
 export * from "./useScaffoldEventHistory";
