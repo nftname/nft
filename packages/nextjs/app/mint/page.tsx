@@ -18,30 +18,30 @@ export default function MintPage() {
 
   const REGISTRY = "NNMRegistryV99";
 
-  const { refetch: checkNameRegistered } = (useScaffoldReadContract as any)({
-    contractName: REGISTRY,
-    functionName: "registeredNames",
+  const { refetch: checkNameRegistered } = useScaffoldReadContract({
+    contractName: REGISTRY as any,
+    functionName: "registeredNames" as any,
     args: [name ? keccak256(toHex(name)) : undefined],
-  });
+  } as any);
 
   const { writeContractAsync: mintPublic } = (useScaffoldWriteContract as any)(REGISTRY);
   const { writeContractAsync: reserveName } = (useScaffoldWriteContract as any)(REGISTRY);
 
-  const { data: founderCost } = (useScaffoldReadContract as any)({
-    contractName: REGISTRY,
-    functionName: "getMaticCost",
+  const { data: founderCost } = useScaffoldReadContract({
+    contractName: REGISTRY as any,
+    functionName: "getMaticCost" as any,
     args: [parseEther("10")],
-  });
-  const { data: eliteCost } = (useScaffoldReadContract as any)({
-    contractName: REGISTRY,
-    functionName: "getMaticCost",
+  } as any);
+  const { data: eliteCost } = useScaffoldReadContract({
+    contractName: REGISTRY as any,
+    functionName: "getMaticCost" as any,
     args: [parseEther("30")],
-  });
-  const { data: immortalCost } = (useScaffoldReadContract as any)({
-    contractName: REGISTRY,
-    functionName: "getMaticCost",
+  } as any);
+  const { data: immortalCost } = useScaffoldReadContract({
+    contractName: REGISTRY as any,
+    functionName: "getMaticCost" as any,
     args: [parseEther("50")],
-  });
+  } as any);
 
   const handleSearch = async () => {
     setStatus("");
@@ -84,13 +84,13 @@ export default function MintPage() {
       const isAdmin = address && address.toLowerCase() === ADMIN_WALLET.toLowerCase();
 
       if (isAdmin) {
-        await reserveName({
+        await (reserveName as any)({
           functionName: "reserveName",
           args: [name, tierIndex, tokenURI],
         });
       } else {
-        const valueToSend = ((costWei ?? 0n) * 105n) / 100n;
-        await mintPublic({
+        const valueToSend = costWei ? (costWei * 105n) / 100n : 0n;
+        await (mintPublic as any)({
           functionName: "mintPublic",
           args: [name, tierIndex, tokenURI],
           value: valueToSend,
@@ -139,7 +139,7 @@ export default function MintPage() {
           {isAvailable && (
             <div className="grid grid-cols-1 gap-3 animate-fade-in">
               <button
-                onClick={() => handleMint("immortal", 3, immortalCost as bigint | undefined)}
+                onClick={() => handleMint("immortal", 0, (immortalCost as any)?.[0])}
                 disabled={isLoading}
                 className="btn h-auto py-3 btn-outline border-purple-500 hover:bg-purple-500 hover:text-white"
               >
@@ -150,7 +150,7 @@ export default function MintPage() {
               </button>
 
               <button
-                onClick={() => handleMint("elite", 2, eliteCost as bigint | undefined)}
+                onClick={() => handleMint("elite", 1, (eliteCost as any)?.[0])}
                 disabled={isLoading}
                 className="btn h-auto py-3 btn-outline border-red-500 hover:bg-red-500 hover:text-white"
               >
@@ -161,7 +161,7 @@ export default function MintPage() {
               </button>
 
               <button
-                onClick={() => handleMint("founder", 1, founderCost as bigint | undefined)}
+                onClick={() => handleMint("founder", 2, (founderCost as any)?.[0])}
                 disabled={isLoading}
                 className="btn h-auto py-3 btn-outline border-green-500 hover:bg-green-500 hover:text-white"
               >
