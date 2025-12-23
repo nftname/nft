@@ -3,6 +3,13 @@
   "installCommand": "yarn install",
   "framework": "nextjs",
   "env": {
-    "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
+    "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
+    "DISABLE_ESLINT_PLUGIN": "true",
+    "VERCEL_FORCE_NO_BUILD_CACHE": "false"
+  },
+  "build": {
+    "env": {
+      "NODE_OPTIONS": "--max-old-space-size=4096"
+    }
   }
 }
