@@ -1,27 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatEther } from "viem";
 import { useAccount, useBalance } from "wagmi";
 import { useDeployedContractInfo, useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
-interface NFTMetadata {
-  name: string;
-  description: string;
-  image: string;
-  attributes?: Array<{ trait_type: string; value: string }>;
-}
-
-interface UserNFT {
-  tokenId: bigint;
-  tokenURI: string;
-  metadata?: NFTMetadata;
-}
-
 export default function DashboardPage() {
   const { address: connectedAddress } = useAccount();
-  const [userNFTs, setUserNFTs] = useState<UserNFT[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
@@ -36,13 +21,13 @@ export default function DashboardPage() {
     args: [connectedAddress],
   });
 
-  // Read contract owner (using raw call since it might not be in ABI yet)
+  // Read contract owner
   const { data: contractOwner } = useScaffoldReadContract({
     contractName: "NNMRegistryV99",
     functionName: "owner",
   });
 
-  // Get contract balance using useBalance
+  // Get contract balance
   const { data: contractBalanceData } = useBalance({
     address: contractAddress,
   });
@@ -69,52 +54,6 @@ export default function DashboardPage() {
       setIsWithdrawing(false);
     }
   };
-
-  useEffect(() => {
-    const fetchUserNFTs = async () => {
-      if (!connectedAddress || !balance || balance === 0n) {
-        setUserNFTs([]);
-        return;
-      }
-
-      setIsLoading(true);
-      setError("");
-
-      try {
-        const nftPromises = [];
-        const total = Number(balance);
-
-        // Note: In a real implementation, you would use tokenOfOwnerByIndex
-        // For now, this is a placeholder structure
-        for (let i = 0; i < total; i++) {
-          // This would call tokenOfOwnerByIndex(connectedAddress, i)
-          // then tokenURI(tokenId) to get the URI
-          // then fetch the metadata from IPFS
-          nftPromises.push(
-            Promise.resolve({
-              tokenId: BigInt(i),
-              tokenURI: `https://example.com/token/${i}`,
-              metadata: {
-                name: `My NFT #${i}`,
-                description: "NNM Market NFT owned by you",
-                image: `https://via.placeholder.com/300?text=My+NFT+${i}`,
-              },
-            }),
-          );
-        }
-
-        const fetchedNFTs = await Promise.all(nftPromises);
-        setUserNFTs(fetchedNFTs);
-      } catch (err: any) {
-        console.error("Error fetching user NFTs:", err);
-        setError("Failed to load your NFTs");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserNFTs();
-  }, [connectedAddress, balance]);
 
   if (!connectedAddress) {
     return (
@@ -219,11 +158,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {isLoading ? (
-          <div className="flex justify-center items-center py-20">
-            <span className="loading loading-spinner loading-lg"></span>
-          </div>
-        ) : !balance || balance === 0n ? (
+        {!balance || balance === 0n ? (
           <div className="text-center py-20">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -246,62 +181,11 @@ export default function DashboardPage() {
             </a>
           </div>
         ) : (
-          <>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Your Collection</h2>
-              <a href="/mint" className="btn btn-primary">
-                Mint Another NFT
-              </a>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {userNFTs.map(nft => (
-                <div
-                  key={nft.tokenId.toString()}
-                  className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow"
-                >
-                  <figure className="px-4 pt-4">
-                    <div className="w-full aspect-square bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center overflow-hidden">
-                      {nft.metadata?.image ? (
-                        <img
-                          src={nft.metadata.image}
-                          alt={nft.metadata.name}
-                          className="rounded-xl w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-4xl text-white">#{nft.tokenId.toString()}</span>
-                      )}
-                    </div>
-                  </figure>
-                  <div className="card-body">
-                    <h2 className="card-title">
-                      {nft.metadata?.name || `NFT #${nft.tokenId}`}
-                      <div className="badge badge-secondary">#{nft.tokenId.toString()}</div>
-                    </h2>
-                    <p className="text-sm opacity-70">{nft.metadata?.description || "NNM Market NFT"}</p>
-                    {nft.metadata?.attributes && nft.metadata.attributes.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-xs font-semibold mb-1">Attributes:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {nft.metadata.attributes.map((attr, idx) => (
-                            <div key={idx} className="badge badge-outline badge-sm">
-                              {attr.trait_type}: {String(attr.value).substring(0, 20)}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div className="card-actions justify-between mt-4">
-                      <a href={nft.tokenURI} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
-                        View Metadata
-                      </a>
-                      <button className="btn btn-primary btn-sm">Transfer</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
+          <div className="text-center py-20">
+            <p className="text-2xl mb-4">Dashboard Under Construction</p>
+            <p className="opacity-70 mb-6">Your NFT collection will be displayed here soon</p>
+            <p className="text-sm opacity-50">You own {balance.toString()} NFT(s)</p>
+          </div>
         )}
       </div>
     </div>
