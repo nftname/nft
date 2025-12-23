@@ -3,7 +3,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   137: {
     NNMRegistryV99: {
-      address: "0x8e46c897bc74405922871a8a6863ccf5cd1fc721",
+      address: "0x8e46C897bC74405922871A8a6863cCf5cD1Fc721",
       abi: [
         {
           inputs: [],
