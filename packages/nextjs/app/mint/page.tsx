@@ -139,7 +139,7 @@ export default function MintPage() {
           {isAvailable && (
             <div className="grid grid-cols-1 gap-3 animate-fade-in">
               <button
-                onClick={() => handleMint("immortal", 0, immortalCost as bigint | undefined)}
+                onClick={() => handleMint("immortal", 3, immortalCost as bigint | undefined)}
                 disabled={isLoading}
                 className="btn h-auto py-3 btn-outline border-purple-500 hover:bg-purple-500 hover:text-white"
               >
@@ -150,7 +150,7 @@ export default function MintPage() {
               </button>
 
               <button
-                onClick={() => handleMint("elite", 1, eliteCost as bigint | undefined)}
+                onClick={() => handleMint("elite", 2, eliteCost as bigint | undefined)}
                 disabled={isLoading}
                 className="btn h-auto py-3 btn-outline border-red-500 hover:bg-red-500 hover:text-white"
               >
@@ -161,7 +161,7 @@ export default function MintPage() {
               </button>
 
               <button
-                onClick={() => handleMint("founder", 2, founderCost as bigint | undefined)}
+                onClick={() => handleMint("founder", 1, founderCost as bigint | undefined)}
                 disabled={isLoading}
                 className="btn h-auto py-3 btn-outline border-green-500 hover:bg-green-500 hover:text-white"
               >
