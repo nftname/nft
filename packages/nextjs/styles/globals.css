@@ -13,34 +13,21 @@
     dark --prefersdark;
 }
 
-/* --- الوضع النهاري (World Class Standard) --- */
 @plugin "daisyui/theme" {
   name: "light";
 
-  /* الذهبي للأزرار والأيقونات فقط */
   --color-primary: #FCD535;
-  --color-primary-content: #0b0e11; /* النص داخل الزر الذهبي أسود */
-
-  /* السماوي الفاتح كلون ثانوي (للديكورات الخلفية الخفيفة) */
-  --color-secondary: #e0f2fe; 
+  --color-primary-content: #0b0e11;
+  --color-secondary: #e0f2fe;
   --color-secondary-content: #0f172a;
-
-  /* لون العناوين والتمييز في الفاتح (كحلي) */
   --color-accent: #0f172a;
   --color-accent-content: #ffffff;
-
-  /* الألوان المحايدة */
   --color-neutral: #0f172a;
   --color-neutral-content: #ffffff;
-
-  /* الخلفية أبيض مكسور مريح للعين */
-  --color-base-100: #f8fafc; 
-  --color-base-200: #f1f5f9; 
-  --color-base-300: #e2e8f0; 
-  
-  /* النصوص الأساسية: كحلي غامق جداً (للقراءة الممتازة) */
+  --color-base-100: #f8fafc;
+  --color-base-200: #f1f5f9;
+  --color-base-300: #e2e8f0;
   --color-base-content: #0f172a;
-
   --color-info: #38bdf8;
   --color-success: #34d399;
   --color-warning: #fbbf24;
@@ -51,33 +38,21 @@
   --tt-tailw: 6px;
 }
 
-/* --- الوضع الليلي (Dark Mode Identity) --- */
 @plugin "daisyui/theme" {
   name: "dark";
 
-  /* الذهبي للأزرار والأيقونات فقط */
   --color-primary: #FCD535;
-  --color-primary-content: #0b0e11; /* النص داخل الزر الذهبي أسود */
-
-  /* الكحلي كخلفية ثانوية */
+  --color-primary-content: #0b0e11;
   --color-secondary: #1e293b;
   --color-secondary-content: #f8fafc;
-
-  /* التمييز بالذهبي أيضاً في الدارك */
   --color-accent: #FCD535;
   --color-accent-content: #0b0e11;
-
   --color-neutral: #f8fafc;
   --color-neutral-content: #0f172a;
-  
-  /* خلفية الموقع الخاصة بك (Deep Blue/Black) */
-  --color-base-100: #0b0e11; 
-  --color-base-200: #11151c; 
-  --color-base-300: #1a202c; 
-  
-  /* النصوص أبيض ناصع للقراءة */
+  --color-base-100: #0b0e11;
+  --color-base-200: #11151c;
+  --color-base-300: #1a202c;
   --color-base-content: #ffffff;
-
   --color-info: #38bdf8;
   --color-success: #34d399;
   --color-warning: #fbbf24;
@@ -85,7 +60,6 @@
 
   --radius-field: 9999rem;
   --radius-box: 1rem;
-
   --tt-tailw: 6px;
   --tt-bg: var(--color-primary);
 }
@@ -144,16 +118,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-base-100); 
+  background: var(--color-base-100);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #FCD535; 
+  background: #FCD535;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #e0bd2f; 
+  background: #e0bd2f;
 }
 
 .footer-link-item {
@@ -200,5 +174,10 @@
   padding-left: 5px;
 }
 
-.footer-social-row i { color: #FCD535; } 
-.footer-social-row:hover i { color: var(--color-base-content); }
+.footer-social-row i {
+  color: #FCD535;
+}
+
+.footer-social-row:hover i {
+  color: var(--color-base-content);
+}
