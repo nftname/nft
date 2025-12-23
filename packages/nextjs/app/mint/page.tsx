@@ -1,245 +1,174 @@
 "use client";
 
 import { useState } from "react";
-import { polygon } from "viem/chains";
-import { useAccount, useChainId, useSwitchChain } from "wagmi";
+import { keccak256, parseEther, toHex } from "viem";
+import { useAccount } from "wagmi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { notification } from "~~/utils/scaffold-eth";
 
 export default function MintPage() {
   const [name, setName] = useState("");
-  const [previewImage, setPreviewImage] = useState<string | null>(null); // لتخزين رابط صورة المعاينة
-  const [isNameValid, setIsNameValid] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAvailable, setIsAvailable] = useState(false);
 
-  const { address: connectedAddress } = useAccount();
-  const chainId = useChainId();
-  const { switchChain } = useSwitchChain();
-  const { writeContractAsync } = useScaffoldWriteContract("NNMRegistryV99");
+  const { address } = useAccount();
 
-  const isOnPolygon = chainId === polygon.id;
+  const ADMIN_WALLET = "0xf65bf669ee7775c9788ed367742e1527d0118b58";
 
-  // 🕵️‍♂️ فحص الصلاحيات (المالك والمصرح لهم)
-  const { data: ownerAddress } = useScaffoldReadContract({
+  const { refetch: checkNameRegistered } = useScaffoldReadContract({
     contractName: "NNMRegistryV99",
-    functionName: "owner",
+    functionName: "registeredNames",
+    args: [name ? keccak256(toHex(name)) : undefined],
   });
 
-  const { data: isAuthorized } = useScaffoldReadContract({
+  const { writeContractAsync: mintPublic } = useScaffoldWriteContract("NNMRegistryV99");
+  const { writeContractAsync: reserveName } = useScaffoldWriteContract("NNMRegistryV99");
+
+  const { data: founderCost } = useScaffoldReadContract({
     contractName: "NNMRegistryV99",
-    functionName: "authorizedMinters",
-    args: [connectedAddress],
+    functionName: "getMaticCost",
+    args: [parseEther("10")],
+  });
+  const { data: eliteCost } = useScaffoldReadContract({
+    contractName: "NNMRegistryV99",
+    functionName: "getMaticCost",
+    args: [parseEther("30")],
+  });
+  const { data: immortalCost } = useScaffoldReadContract({
+    contractName: "NNMRegistryV99",
+    functionName: "getMaticCost",
+    args: [parseEther("50")],
   });
 
-  const isOwner = connectedAddress && ownerAddress && connectedAddress.toLowerCase() === ownerAddress.toLowerCase();
-
-  // تعريف الباقات
-  const tiers = [
-    { index: 0, price: "50", name: "IMMORTAL", color: "border-purple-500 hover:bg-purple-500" },
-    { index: 1, price: "30", name: "ELITE", color: "border-red-500 hover:bg-red-500" },
-    { index: 2, price: "10", name: "FOUNDER", color: "border-green-500 hover:bg-green-500" },
-  ];
-
-  // 🔎 دالة البحث والمعاينة (Search & Preview)
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  const handleSearch = async () => {
     setStatus("");
-    setPreviewImage(null); // مسح الصورة القديمة
-    setIsNameValid(false);
+    setIsAvailable(false);
 
-    // 1. تنظيف الاسم
-    const cleanName = name.replace(/[^a-zA-Z0-9]/g, "");
-
-    if (cleanName.length < 3) {
-      setError("Name must be at least 3 characters.");
+    const cleanName = name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    if (!cleanName || cleanName.length < 3) {
+      notification.error("Name must be at least 3 characters");
       return;
     }
 
-    if (name !== cleanName) {
-      setName(cleanName);
-      setError("Auto-corrected: Spaces and symbols removed.");
-    }
+    if (name !== cleanName) setName(cleanName);
 
-    // 2. طلب صورة المعاينة من السيرفر (بدون رفع)
-    setIsLoading(true);
-    setStatus("🔍 Checking name & Generating Preview...");
+    const { data: isTaken } = await checkNameRegistered();
 
-    try {
-      const response = await fetch("/api/mint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // نطلب وضع 'preview' ونحدد الفئة الافتراضية للعرض (مثلاً Founder)
-        body: JSON.stringify({ name: cleanName, tier: "founder", mode: "preview" }),
-      });
-
-      if (!response.ok) throw new Error("Failed to generate preview image");
-
-      // تحويل البيانات القادمة إلى رابط صورة للعرض
-      const blob = await response.blob();
-      const imageUrl = URL.createObjectURL(blob);
-
-      setPreviewImage(imageUrl);
-      setIsNameValid(true);
-      setStatus("✅ Name available! Preview generated below.");
-    } catch (err) {
-      console.error(err);
-      setError("Could not generate preview. Please try again.");
-    } finally {
-      setIsLoading(false);
+    if (isTaken) {
+      setStatus("❌ Taken. Please choose another.");
+      setIsAvailable(false);
+    } else {
+      setStatus("✅ Available! Select a Tier:");
+      setIsAvailable(true);
     }
   };
 
-  // 🚀 دالة الصك (عند الضغط على السعر)
-  const handleMintClick = async (tierIndex: number, tierName: string) => {
-    if (!isNameValid || !name) return;
-
-    setError("");
-    setStatus("");
+  const handleMint = async (tierName: string, tierIndex: number, costWei: bigint | undefined) => {
+    if (!name || !isAvailable) return;
     setIsLoading(true);
 
     try {
-      if (!connectedAddress) throw new Error("Connect Wallet First");
-      if (!isOnPolygon) {
-        setStatus("Switching to Polygon...");
-        await switchChain({ chainId: polygon.id });
-      }
-
-      // 1. التوليد والرفع الحقيقي (Mint Mode)
-      setStatus(`🎨 Generating & Uploading ${tierName} NFT...`);
-
       const response = await fetch("/api/mint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // هذه المرة نرسل mode: 'mint' ونرسل الفئة المختارة ليتم تلوين الكرت حسب الفئة
-        body: JSON.stringify({ name: name, tier: tierName, mode: "mint" }),
+        body: JSON.stringify({ name: name, tier: tierName }),
       });
 
-      const apiData = await response.json();
-      if (!response.ok) throw new Error(apiData.error || "Upload Failed");
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error);
 
-      const finalURI = apiData.tokenURI;
-      console.log("Uploaded URI:", finalURI);
+      const tokenURI = data.tokenUri;
+      const isAdmin = address && address.toLowerCase() === ADMIN_WALLET.toLowerCase();
 
-      // 2. التعامل مع البلوكتشين
-      setStatus("🔐 Confirming Transaction in Wallet...");
-
-      if (isOwner) {
-        console.log("Owner Minting...");
-        await writeContractAsync({
+      if (isAdmin) {
+        await reserveName({
           functionName: "reserveName",
-          args: [name, tierIndex, finalURI],
-        });
-      } else if (isAuthorized) {
-        console.log("Authorized Minting...");
-        await writeContractAsync({
-          functionName: "authorizedMint",
-          args: [name, tierIndex, finalURI],
+          args: [name, tierIndex, tokenURI],
         });
       } else {
-        console.log("Public Minting...");
-        // للعامة: (تم تركها كما طلبت بدون تحديد قيمة لكي تنجح معك كمالك)
-        await writeContractAsync({
+        const valueToSend = costWei ? (costWei * 105n) / 100n : 0n;
+        await mintPublic({
           functionName: "mintPublic",
-          args: [name, tierIndex, finalURI],
+          args: [name, tierIndex, tokenURI],
+          value: valueToSend,
         });
       }
 
-      setStatus(`🎉 SUCCESS! You own ${name} now!`);
-      // إبقاء الصورة للاحتفال، أو مسحها إذا أردت:
-      // setPreviewImage(null);
-      // setName("");
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Minting transaction failed");
+      setStatus(`🎉 Successfully Minted: ${name}`);
+      notification.success("Mint Successful!");
+      setIsAvailable(false);
+      setName("");
+    } catch (error: any) {
+      console.error(error);
+      notification.error(error.message || "Mint Failed");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center pt-10 min-h-screen px-4 pb-20">
-      <div className="w-full max-w-2xl text-center">
-        <h1 className="text-4xl font-bold mb-2">Mint Your Identity</h1>
-        <p className="mb-8 opacity-70">Secure your Gen-0 digital legacy</p>
+    <div className="flex flex-col items-center pt-10 min-h-screen px-4 pb-20 bg-base-300">
+      <div className="w-full max-w-xl text-center">
+        <h1 className="text-4xl font-bold mb-2">Claim Your Name</h1>
+        <p className="mb-8 opacity-70">Check availability and mint instantly.</p>
 
-        <div className="bg-base-100 rounded-3xl shadow-xl border border-base-300 p-8">
-          {!connectedAddress ? (
-            <div className="text-lg font-bold text-warning animate-pulse">Please Connect Wallet ↗</div>
-          ) : (
-            <>
-              {/* === 1. البحث === */}
-              <div className="flex gap-2 mb-6">
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => {
-                    const val = e.target.value.replace(/[^a-zA-Z0-9]/g, "");
-                    setName(val);
-                    setIsNameValid(false);
-                    setPreviewImage(null); // إخفاء المعاينة عند تغيير الاسم
-                    setError("");
-                    setStatus("");
-                  }}
-                  placeholder="Enter Name (e.g. Satoshi)"
-                  className="input input-bordered w-full text-lg font-mono"
-                  maxLength={25}
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={handleSearch}
-                  className={`btn btn-neutral px-8 ${isLoading && !previewImage ? "loading" : ""}`}
-                  disabled={!name || isLoading}
-                >
-                  {isLoading && !previewImage ? "" : "Search"}
-                </button>
-              </div>
+        <div className="bg-base-100 rounded-3xl shadow-xl p-8">
+          <div className="flex gap-2 mb-6">
+            <input
+              type="text"
+              value={name}
+              onChange={e => {
+                setName(e.target.value.toUpperCase());
+                setIsAvailable(false);
+                setStatus("");
+              }}
+              placeholder="ENTER NAME"
+              className="input input-bordered w-full text-lg font-mono uppercase"
+              disabled={isLoading}
+            />
+            <button onClick={handleSearch} className="btn btn-primary px-6" disabled={isLoading || !name}>
+              Check
+            </button>
+          </div>
 
-              {/* رسائل التنبيه */}
-              {error && <div className="alert alert-error text-sm mb-4 font-bold">{error}</div>}
-              {status && (
-                <div className={`alert ${status.includes("SUCCESS") ? "alert-success" : "alert-info"} text-sm mb-4`}>
-                  {status}
-                </div>
-              )}
+          {status && <div className="text-sm font-bold mb-6">{status}</div>}
 
-              {/* === 2. المعاينة (تظهر فقط بعد نجاح البحث) === */}
-              {previewImage && (
-                <div className="animate-fade-in mb-8">
-                  <p className="text-xs uppercase tracking-widest opacity-50 mb-2">Generated Preview</p>
-                  <div className="relative group inline-block">
-                    <img
-                      src={previewImage}
-                      alt="NFT Preview"
-                      className="rounded-xl shadow-2xl border-4 border-base-300 max-w-[280px] mx-auto hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute -bottom-3 -right-3 badge badge-primary badge-lg rotate-12">Gen-0</div>
-                  </div>
-                </div>
-              )}
-
-              {/* === 3. خيارات الدفع (تظهر فقط عند وجود المعاينة) === */}
-              <div
-                className={`transition-all duration-700 ${isNameValid && previewImage ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none h-0 overflow-hidden"}`}
+          {isAvailable && (
+            <div className="grid grid-cols-1 gap-3 animate-fade-in">
+              <button
+                onClick={() => handleMint("immortal", 0, immortalCost)}
+                disabled={isLoading}
+                className="btn h-auto py-3 btn-outline border-purple-500 hover:bg-purple-500 hover:text-white"
               >
-                <div className="divider">Ready to Mint?</div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {tiers.map(tier => (
-                    <button
-                      key={tier.index}
-                      onClick={() => handleMintClick(tier.index, tier.name)}
-                      disabled={isLoading}
-                      className={`btn h-auto py-4 flex flex-col items-center gap-1 btn-outline ${tier.color} hover:text-white transition-all`}
-                    >
-                      <span className="text-xs font-bold tracking-widest opacity-80">{tier.name}</span>
-                      <span className="text-2xl font-black">${tier.price}</span>
-                    </button>
-                  ))}
+                <div className="flex flex-col items-center">
+                  <span className="text-lg font-bold">IMMORTAL</span>
+                  <span className="text-sm opacity-80">$50</span>
                 </div>
-                <p className="text-xs opacity-40 mt-4">One-time payment. No renewal fees.</p>
-              </div>
-            </>
+              </button>
+
+              <button
+                onClick={() => handleMint("elite", 1, eliteCost)}
+                disabled={isLoading}
+                className="btn h-auto py-3 btn-outline border-red-500 hover:bg-red-500 hover:text-white"
+              >
+                <div className="flex flex-col items-center">
+                  <span className="text-lg font-bold">ELITE</span>
+                  <span className="text-sm opacity-80">$30</span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleMint("founder", 2, founderCost)}
+                disabled={isLoading}
+                className="btn h-auto py-3 btn-outline border-green-500 hover:bg-green-500 hover:text-white"
+              >
+                <div className="flex flex-col items-center">
+                  <span className="text-lg font-bold">FOUNDER</span>
+                  <span className="text-sm opacity-80">$10</span>
+                </div>
+              </button>
+            </div>
           )}
         </div>
       </div>
