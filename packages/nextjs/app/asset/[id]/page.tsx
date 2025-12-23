@@ -54,24 +54,21 @@ export default function AssetPage() {
   const { data: record, isLoading } = useScaffoldReadContract({
     contractName: "NNMRegistryV99",
     functionName: "nameRecords",
-    args: tokenId !== undefined ? [tokenId] as const : undefined,
-    enabled: tokenId !== undefined,
+    args: [tokenId] as readonly [bigint | undefined],
   });
 
   // Read owner of the token
   const { data: owner } = useScaffoldReadContract({
     contractName: "NNMRegistryV99",
     functionName: "ownerOf",
-    args: tokenId !== undefined ? [tokenId] as const : undefined,
-    enabled: tokenId !== undefined,
+    args: [tokenId] as readonly [bigint | undefined],
   });
 
   // Read token URI
   const { data: tokenURI } = useScaffoldReadContract({
     contractName: "NNMRegistryV99",
     functionName: "tokenURI",
-    args: tokenId !== undefined ? [tokenId] as const : undefined,
-    enabled: tokenId !== undefined,
+    args: [tokenId] as readonly [bigint | undefined],
   });
 
   // Extract data from response
@@ -252,8 +249,14 @@ export default function AssetPage() {
                 position: "sticky",
               }}
             >
-              <div className="d-flex justify-content-between" style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
-                <h2 className="text-white fw-bold font-serif" style={{ color: "white", fontWeight: "bold", fontFamily: "serif" }}>
+              <div
+                className="d-flex justify-content-between"
+                style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}
+              >
+                <h2
+                  className="text-white fw-bold font-serif"
+                  style={{ color: "white", fontWeight: "bold", fontFamily: "serif" }}
+                >
                   {assetName}
                 </h2>
                 <span
@@ -269,7 +272,10 @@ export default function AssetPage() {
                   GEN-0
                 </span>
               </div>
-              <p className="small text-secondary mb-4" style={{ fontSize: "0.875rem", opacity: 0.7, marginBottom: "1rem" }}>
+              <p
+                className="small text-secondary mb-4"
+                style={{ fontSize: "0.875rem", opacity: 0.7, marginBottom: "1rem" }}
+              >
                 Tier: <span style={{ color: style.labelColor }}>{style.name}</span>
               </p>
 
@@ -286,7 +292,16 @@ export default function AssetPage() {
                 <span className="small text-secondary" style={{ fontSize: "0.75rem", opacity: 0.7 }}>
                   Owner
                 </span>
-                <h3 className="text-white fw-bold" style={{ color: "white", fontWeight: "bold", fontSize: "0.875rem", marginTop: "0.25rem", wordBreak: "break-all" }}>
+                <h3
+                  className="text-white fw-bold"
+                  style={{
+                    color: "white",
+                    fontWeight: "bold",
+                    fontSize: "0.875rem",
+                    marginTop: "0.25rem",
+                    wordBreak: "break-all",
+                  }}
+                >
                   {owner ? `${owner.slice(0, 6)}...${owner.slice(-4)}` : "Unknown"}
                 </h3>
               </div>
@@ -302,7 +317,10 @@ export default function AssetPage() {
                   <div className="small text-secondary" style={{ fontSize: "0.75rem", opacity: 0.7 }}>
                     Collection
                   </div>
-                  <div className="text-white small" style={{ color: "white", fontSize: "0.875rem", marginTop: "0.25rem" }}>
+                  <div
+                    className="text-white small"
+                    style={{ color: "white", fontSize: "0.875rem", marginTop: "0.25rem" }}
+                  >
                     Genesis
                   </div>
                 </div>
@@ -313,7 +331,10 @@ export default function AssetPage() {
                   <div className="small text-secondary" style={{ fontSize: "0.75rem", opacity: 0.7 }}>
                     Chain
                   </div>
-                  <div className="text-white small" style={{ color: "white", fontSize: "0.875rem", marginTop: "0.25rem" }}>
+                  <div
+                    className="text-white small"
+                    style={{ color: "white", fontSize: "0.875rem", marginTop: "0.25rem" }}
+                  >
                     Polygon
                   </div>
                 </div>
@@ -324,7 +345,10 @@ export default function AssetPage() {
                   <div className="small text-secondary" style={{ fontSize: "0.75rem", opacity: 0.7 }}>
                     Items
                   </div>
-                  <div className="text-white small" style={{ color: "white", fontSize: "0.875rem", marginTop: "0.25rem" }}>
+                  <div
+                    className="text-white small"
+                    style={{ color: "white", fontSize: "0.875rem", marginTop: "0.25rem" }}
+                  >
                     1/1
                   </div>
                 </div>

@@ -1,193 +1,207 @@
 "use client";
 
 import { useState } from "react";
-import { formatEther } from "viem";
-import { useAccount, useBalance } from "wagmi";
-import { useDeployedContractInfo, useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import Link from "next/link";
+import { useAccount } from "wagmi";
+import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
+import { getTierColorStyle, resolveTier } from "~~/utils/tierHelper";
+
+const GOLD_GRADIENT = "linear-gradient(135deg, #FFF5CC 0%, #FCD535 40%, #B3882A 100%)";
+
+// --- مكون البطاقة (يجلب بياناته بنفسه) ---
+const DashboardAssetCard = ({ address, index }: { address: string; index: number }) => {
+  // 1. الحصول على الـ Token ID
+  const { data: tokenId } = useScaffoldReadContract({
+    contractName: "NNMRegistryV99",
+    functionName: "tokenOfOwnerByIndex",
+    args: [address, BigInt(index)],
+  });
+
+  // 2. الحصول على تفاصيل الاسم
+  const { data: record } = useScaffoldReadContract({
+    contractName: "NNMRegistryV99",
+    functionName: "nameRecords",
+    args: [tokenId],
+  });
+
+  if (!tokenId || !record) return <div className="animate-pulse bg-gray-800 rounded-xl h-64 w-full"></div>;
+
+  const name = record[0];
+  const tier = resolveTier(record[1]);
+  const style = getTierColorStyle(tier);
+
+  return (
+    <div
+      className="p-3 h-100"
+      style={{ backgroundColor: "#161b22", borderRadius: "12px", border: "1px solid #1c2128" }}
+    >
+      <div
+        className="mb-3"
+        style={{
+          width: "100%",
+          height: "160px",
+          background: style.bg,
+          border: `1px solid ${style.border}`,
+          borderRadius: "8px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <h3
+            style={{
+              fontFamily: "serif",
+              fontWeight: "900",
+              fontSize: "24px",
+              background: GOLD_GRADIENT,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              textTransform: "uppercase",
+            }}
+          >
+            {name}
+          </h3>
+        </div>
+      </div>
+      <div className="w-100">
+        <div className="d-flex justify-content-between align-items-end mb-3">
+          <div>
+            <div className="text-secondary text-uppercase" style={{ fontSize: "9px" }}>
+              Tier
+            </div>
+            <div style={{ color: style.color, fontSize: "11px", fontWeight: "700", textTransform: "uppercase" }}>
+              {tier}
+            </div>
+          </div>
+          <div className="text-end">
+            <div className="text-secondary text-uppercase" style={{ fontSize: "9px" }}>
+              ID
+            </div>
+            <div className="text-white fw-bold" style={{ fontSize: "12px" }}>
+              #{tokenId.toString()}
+            </div>
+          </div>
+        </div>
+        <Link href={`/asset/${tokenId.toString()}`} className="text-decoration-none">
+          <button
+            className="btn w-100 py-2 border-secondary text-white"
+            style={{ backgroundColor: "#0d1117", fontSize: "12px", fontWeight: "600" }}
+          >
+            <i className="bi bi-gear-fill me-2 text-secondary"></i> Manage Asset
+          </button>
+        </Link>
+      </div>
+    </div>
+  );
+};
 
 export default function DashboardPage() {
-  const { address: connectedAddress } = useAccount();
-  const [error, setError] = useState("");
-  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const { address, isConnected } = useAccount();
+  const [activeTab, setActiveTab] = useState("ALL");
 
-  // Get contract info
-  const { data: deployedContractData } = useDeployedContractInfo("NNMRegistryV99");
-  const contractAddress = deployedContractData?.address;
-
-  // Read user's NFT balance
   const { data: balance } = useScaffoldReadContract({
     contractName: "NNMRegistryV99",
     functionName: "balanceOf",
-    args: [connectedAddress],
+    args: [address],
   });
 
-  // Read contract owner
-  const { data: contractOwner } = useScaffoldReadContract({
-    contractName: "NNMRegistryV99",
-    functionName: "owner",
-  });
-
-  // Get contract balance
-  const { data: contractBalanceData } = useBalance({
-    address: contractAddress,
-  });
-
-  // Write contract function
-  const { writeContractAsync } = useScaffoldWriteContract("NNMRegistryV99");
-
-  // Check if user is owner
-  const isOwner = connectedAddress && contractOwner && connectedAddress.toLowerCase() === contractOwner.toLowerCase();
-
-  // Handle withdraw
-  const handleWithdraw = async () => {
-    if (!isOwner) return;
-
-    setIsWithdrawing(true);
-    try {
-      await writeContractAsync({
-        functionName: "withdraw",
-      });
-    } catch (err: any) {
-      console.error("Withdraw error:", err);
-      setError(err.message || "Failed to withdraw funds");
-    } finally {
-      setIsWithdrawing(false);
-    }
-  };
-
-  if (!connectedAddress) {
-    return (
-      <div className="flex items-center flex-col flex-grow pt-10">
-        <div className="px-5 w-full max-w-4xl">
-          <h1 className="text-center mb-8">
-            <span className="block text-4xl font-bold mb-2">My Dashboard</span>
-            <span className="block text-2xl">NNM Market</span>
-          </h1>
-
-          <div className="bg-base-100 rounded-3xl shadow-xl border-2 border-primary p-12 text-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-24 w-24 mx-auto mb-6 opacity-50"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
-            <h2 className="text-2xl font-bold mb-4">Wallet Not Connected</h2>
-            <p className="text-lg opacity-70 mb-6">Please connect your wallet to view your NFT collection</p>
-            <p className="text-sm opacity-60">Make sure you&apos;re connected to Polygon Mainnet</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const count = balance ? Number(balance) : 0;
+  const indices = Array.from({ length: count }, (_, i) => i);
 
   return (
-    <div className="flex items-center flex-col flex-grow pt-10">
-      <div className="px-5 w-full max-w-7xl">
-        <h1 className="text-center mb-8">
-          <span className="block text-4xl font-bold mb-2">My Dashboard</span>
-          <span className="block text-2xl">NNM Market</span>
-        </h1>
-
-        <div className="bg-base-200 rounded-2xl p-6 mb-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-              <p className="text-sm opacity-70">Connected Address</p>
-              <p className="font-mono text-lg font-bold break-all">{connectedAddress}</p>
+    <main style={{ backgroundColor: "#0d1117", minHeight: "100vh", fontFamily: "sans-serif", paddingBottom: "80px" }}>
+      {/* Header Stats (Design Preserved) */}
+      <div className="container pt-5 pb-4">
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-end gap-4">
+          <div>
+            <h5 className="text-secondary text-uppercase mb-2" style={{ letterSpacing: "2px", fontSize: "12px" }}>
+              Welcome Back
+            </h5>
+            <h1 className="text-white fw-bold m-0" style={{ fontFamily: "serif", fontSize: "36px" }}>
+              My Portfolio
+            </h1>
+            <div className="d-flex align-items-center gap-2 mt-2">
+              <span className="badge bg-dark border border-secondary text-secondary px-3 py-2">
+                {address?.slice(0, 6)}...{address?.slice(-4)}
+              </span>
             </div>
-            <div className="text-center md:text-right">
-              <p className="text-sm opacity-70">Your NFTs</p>
-              <p className="text-4xl font-bold text-primary">{balance ? balance.toString() : "0"}</p>
+          </div>
+          <div
+            className="d-flex gap-4 p-3 rounded-3"
+            style={{ backgroundColor: "#161b22", border: "1px solid #1c2128" }}
+          >
+            <div>
+              <div className="text-secondary text-uppercase" style={{ fontSize: "10px" }}>
+                Total Assets
+              </div>
+              <div className="text-white fw-bold" style={{ fontSize: "20px" }}>
+                {count}
+              </div>
             </div>
           </div>
         </div>
-
-        {isOwner && (
-          <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-6 mb-8 text-white">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div>
-                <h3 className="text-xl font-bold mb-2">👑 Contract Owner Panel</h3>
-                <p className="opacity-90">
-                  Contract Balance:{" "}
-                  <span className="font-bold text-2xl">
-                    {contractBalanceData ? formatEther(contractBalanceData.value) : "0"} POL
-                  </span>
-                </p>
-              </div>
-              <button
-                onClick={handleWithdraw}
-                disabled={isWithdrawing || !contractBalanceData || contractBalanceData.value === 0n}
-                className="btn btn-neutral btn-lg"
-              >
-                {isWithdrawing ? (
-                  <>
-                    <span className="loading loading-spinner"></span>
-                    Withdrawing...
-                  </>
-                ) : (
-                  "💰 Withdraw Funds"
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="alert alert-error mb-6">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="stroke-current shrink-0 h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span>{error}</span>
-          </div>
-        )}
-
-        {!balance || balance === 0n ? (
-          <div className="text-center py-20">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-32 w-32 mx-auto mb-6 opacity-30"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-              />
-            </svg>
-            <p className="text-2xl mb-4">No NFTs Yet</p>
-            <p className="opacity-70 mb-6">You haven&apos;t minted any NFTs on NNM Market</p>
-            <a href="/mint" className="btn btn-primary btn-lg">
-              Mint Your First NFT
-            </a>
-          </div>
-        ) : (
-          <div className="text-center py-20">
-            <p className="text-2xl mb-4">Dashboard Under Construction</p>
-            <p className="opacity-70 mb-6">Your NFT collection will be displayed here soon</p>
-            <p className="text-sm opacity-50">You own {balance.toString()} NFT(s)</p>
-          </div>
-        )}
+        <div
+          className="w-100 my-4"
+          style={{
+            height: "1px",
+            background: "linear-gradient(90deg, transparent 0%, rgba(252, 213, 53, 0.3) 50%, transparent 100%)",
+          }}
+        ></div>
       </div>
-    </div>
+
+      {/* Tabs */}
+      <div className="container mb-5">
+        <div className="d-flex gap-3">
+          {["ALL"].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="btn fw-bold rounded-pill px-4"
+              style={{
+                backgroundColor: activeTab === tab ? "#FCD535" : "transparent",
+                color: activeTab === tab ? "#000" : "#888",
+                border: "1px solid #333",
+                fontSize: "12px",
+              }}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid Content */}
+      <div className="container">
+        <div className="row g-4">
+          {!isConnected ? (
+            <div className="text-white">Please connect wallet</div>
+          ) : count === 0 ? (
+            <div className="text-white opacity-50">No assets found. Mint your first one!</div>
+          ) : (
+            indices.map(i => (
+              <div key={i} className="col-12 col-md-6 col-lg-4 col-xl-3">
+                <DashboardAssetCard address={address!} index={i} />
+              </div>
+            ))
+          )}
+
+          {/* Mint New Card */}
+          <div className="col-12 col-md-6 col-lg-4 col-xl-3">
+            <Link href="/mint" className="text-decoration-none">
+              <div
+                className="h-100 d-flex flex-column align-items-center justify-content-center p-4"
+                style={{ border: "1px dashed #333", borderRadius: "12px", minHeight: "280px" }}
+              >
+                <i className="bi bi-plus-lg text-secondary mb-3" style={{ fontSize: "28px" }}></i>
+                <span className="text-secondary fw-bold text-uppercase" style={{ fontSize: "12px" }}>
+                  Mint New Asset
+                </span>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }
